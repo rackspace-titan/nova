@@ -76,7 +76,7 @@ def create_container_if_missing(swift_conn, container):
                 logging.error(msg)
                 raise Exception(msg)
         else:
-            msg = "ERROR"
+            msg = "Received unexpected status from the swift_client %s " % e
             raise Exception(msg)
 
 
@@ -116,8 +116,11 @@ def _upload_tarball_to_swift(swift_conn, obj_name, tar_file, tar_size=0,
     if tar_size > 0 and tar_size < large_object_size:
         # Image size is known, and is less than large_object_size.
         # Send to Swift with regular PUT.
-        obj_etag = swift_conn.put_object(container, obj_name, tar_file,
-                                         content_length=tar_size)
+        try:
+            obj_etag = swift_conn.put_object(container, obj_name, tar_file,
+                                             content_length=tar_size)
+        except swift_client.ClientException, e:
+            msg = "Failed to upload image %s " % e
     else:
         # Write the image into Swift in chunks.
         chunk_id = 1
@@ -149,9 +152,12 @@ def _upload_tarball_to_swift(swift_conn, obj_name, tar_file, tar_size=0,
 
             chunk_name = "%s-%05d" % (obj_name, chunk_id)
             reader = ChunkReader(tar_file, checksum, chunk_size)
-            chunk_etag = swift_conn.put_object(
-                container, chunk_name, reader,
-                content_length=content_length)
+            try:
+                chunk_etag = swift_conn.put_object( container, chunk_name,
+                                    reader, content_length=content_length)
+            except swift_client.ClientException, e:
+                msg = "Failed to upload image %s " % e
+
             bytes_read = reader.bytes_read
             msg = ("Wrote chunk %(chunk_name)s (%(chunk_id)d/"
                    "%(total_chunks)s) of length %(bytes_read)d "
@@ -163,7 +169,11 @@ def _upload_tarball_to_swift(swift_conn, obj_name, tar_file, tar_size=0,
                 # Delete the last chunk, because it's of zero size.
                 # This will happen if image_size == 0.
                 logging.debug("Deleting final zero-length chunk")
-                swift_conn.delete_object(container, chunk_name)
+                try:
+                    swift_conn.delete_object(container, chunk_name)
+                except swift_client.ClientException, e:
+                    msg = "Failed to delete zero length chuck %s " % e
+
                 break
 
             chunk_id += 1
@@ -182,11 +192,15 @@ def _upload_tarball_to_swift(swift_conn, obj_name, tar_file, tar_size=0,
 
         # The ETag returned for the manifest is actually the
         # MD5 hash of the concatenated checksums of the strings
-        # of each chunk...so we ignore this result in favour of
+        # of each chunk. So, we ignore this result in favour of
         # the MD5 of the entire image file contents, so that
         # users can verify the image file contents accordingly
-        swift_conn.put_object(container, obj_name,
-            None, headers=headers)
+        try:
+            swift_conn.put_object(container, obj_name,
+                                  None, headers=headers)
+        except swift_client.ClientException, e:
+            msg = "Failed to delete zero length chuck %s " % e
+
         obj_etag = checksum.hexdigest()
 
     return obj_etag
