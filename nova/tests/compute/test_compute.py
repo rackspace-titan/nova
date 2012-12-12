@@ -1254,6 +1254,24 @@ class ComputeTestCase(BaseTestCase):
         self.compute.snapshot_instance(self.context, name, instance=instance)
         self.compute.terminate_instance(self.context, instance=instance)
 
+    def test_snapshot_direct_upload_to_swift(self):
+        """Ensure instance can be snapshotted"""
+        def fake_snapshot(*args, **kwargs):
+            to_return = {}
+            to_return.default = None
+            return to_return
+
+        self.stubs.Set(self.compute.driver, 'snapshot', fake_snapshot)
+
+        self.flags(image_store='nova.image.store.swift.SwiftStore')
+        instance = jsonutils.to_primitive(self._create_fake_instance())
+        name = "myfakesnapshot"
+        self.compute.run_instance(self.context, instance=instance)
+        db.instance_update(self.context, instance['uuid'],
+                           {"task_state": task_states.IMAGE_SNAPSHOT})
+        self.compute.snapshot_instance(self.context, name, instance=instance)
+        self.compute.terminate_instance(self.context, instance=instance)
+
     def test_snapshot_no_image(self):
         params = {'image_ref': ''}
         name = "myfakesnapshot"
@@ -1265,6 +1283,24 @@ class ComputeTestCase(BaseTestCase):
         self.compute.terminate_instance(self.context, instance=instance)
 
     def test_snapshot_fails(self):
+        """Ensure task_state is set to None if snapshot fails"""
+        def fake_snapshot(*args, **kwargs):
+            raise test.TestingException()
+
+        self.stubs.Set(self.compute.driver, 'snapshot', fake_snapshot)
+
+        instance = jsonutils.to_primitive(self._create_fake_instance())
+        self.compute.run_instance(self.context, instance=instance)
+        db.instance_update(self.context, instance['uuid'],
+                           {"task_state": task_states.IMAGE_SNAPSHOT})
+        self.compute.snapshot_instance(self.context,
+                                       "failing_snapshot",
+                                       instance=instance)
+        self._assert_state({'task_state': None})
+        self.compute.terminate_instance(self.context, instance=instance)
+
+    def test_snapshot_fails_direct_upload_to_swift(self):
+        self.flags(image_store='swift')
         """Ensure task_state is set to None if snapshot fails"""
         def fake_snapshot(*args, **kwargs):
             raise test.TestingException()
