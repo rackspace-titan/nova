@@ -146,7 +146,7 @@ def _upload_tarball_to_swift(swift_conn, obj_name, tar_file, tar_size=0,
             chunk_name = "%s-%05d" % (obj_name, chunk_id)
             reader = ChunkReader(tar_file, checksum, chunk_size)
             try:
-                chunk_etag = swift_conn.put_object( container, chunk_name,
+                chunk_etag = swift_conn.put_object(container, chunk_name,
                                     reader, content_length=content_length)
             except swift_client.ClientException, e:
                 msg = "Failed to upload image %s " % e
@@ -206,7 +206,7 @@ def _upload_tarball(staging_path, image_id, **params):
     """
     enable_snet = params['swift_enable_snet']
     create_container_on_put = params['swift_store_create_container_on_put']
-    container =  params['swift_store_container']
+    container = params['swift_store_container']
     large_object_size = params['swift_store_large_object_size']
     large_object_size_bytes = large_object_size * MEGABYTES_TO_BYTES_FACTOR
     large_object_chunk_size = params['swift_store_large_object_chunk_size']
