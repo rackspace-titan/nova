@@ -343,6 +343,30 @@ class DbApiTestCase(DbTestCase):
         # Make sure instance metadata is deleted as well
         self.assertEqual({}, instance_meta)
 
+    def test_instance_metadata_get_all_by_key(self):
+        ctxt = context.get_admin_context()
+
+        # Create an instance with some metadata
+        values = {'metadata': {'host': 'foo', 'key1': 'meow'},
+                  'system_metadata': {'test_key1': 'blah'}}
+        instance = db.instance_create(ctxt, values)
+
+        values2 = {'metadata': {'host': 'foo', 'key1': 'meow'},
+                  'system_metadata': {'test_key2': 'blah2'}}
+        instance2 = db.instance_create(ctxt, values2)
+
+        instance_meta = db.instance_system_metadata_get_all_by_key(ctxt,
+                                                                   'test_key1')
+        self.assertEqual(instance_meta[instance['uuid']], 'blah')
+        self.assertEqual(len(instance_meta.keys()), 1)
+        db.instance_destroy(ctxt, instance['uuid'])
+        db.instance_destroy(ctxt, instance2['uuid'])
+
+        instance_meta = db.instance_system_metadata_get_all_by_key(ctxt,
+                                                                   'test_key1')
+        # Make sure instance metadata is deleted as well
+        self.assertEqual({}, instance_meta)
+
     def test_instance_update_unique_name(self):
         otherprojectcontext = context.RequestContext(self.user_id,
                                           "%s2" % self.project_id)

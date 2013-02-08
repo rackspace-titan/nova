@@ -1,6 +1,9 @@
 {
     "servers": [
         {
+            "OS-SI:image_schedule": {
+                "retention": 6
+            },
             "accessIPv4": "",
             "accessIPv6": "",
             "addresses": {
@@ -11,7 +14,7 @@
                     }
                 ]
             },
-            "created": "2013-03-15T22:10:26Z",
+            "created": "2013-03-20T22:23:58Z",
             "flavor": {
                 "id": "1",
                 "links": [
@@ -21,8 +24,8 @@
                     }
                 ]
             },
-            "hostId": "7198bf74c34dd66e55b9e6bfcd23df0c532a072ff8439b532310d0b8",
-            "id": "1e59c5a4-53fa-4324-87c9-2600c154f385",
+            "hostId": "23eb0f30ef431b1654fa44c628c43b4eec926868e38116f8c75051b6",
+            "id": "3b0fabd4-bc92-4c22-adec-02ad6132d75f",
             "image": {
                 "id": "70a599e0-31e7-49b7-b260-868f441e862b",
                 "links": [
@@ -34,11 +37,11 @@
             },
             "links": [
                 {
-                    "href": "http://openstack.example.com/v2/openstack/servers/1e59c5a4-53fa-4324-87c9-2600c154f385",
+                    "href": "http://openstack.example.com/v2/openstack/servers/3b0fabd4-bc92-4c22-adec-02ad6132d75f",
                     "rel": "self"
                 },
                 {
-                    "href": "http://openstack.example.com/openstack/servers/1e59c5a4-53fa-4324-87c9-2600c154f385",
+                    "href": "http://openstack.example.com/openstack/servers/3b0fabd4-bc92-4c22-adec-02ad6132d75f",
                     "rel": "bookmark"
                 }
             ],
@@ -49,7 +52,7 @@
             "progress": 0,
             "status": "ACTIVE",
             "tenant_id": "openstack",
-            "updated": "2013-03-15T22:10:27Z",
+            "updated": "2013-03-20T22:23:59Z",
             "user_id": "fake"
         }
     ]
