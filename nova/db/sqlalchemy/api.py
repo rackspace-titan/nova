@@ -3796,6 +3796,21 @@ def instance_system_metadata_get(context, instance_uuid, session=None):
 
 
 @require_context
+def instance_system_metadata_delete(context, instance_uuid, metadata,
+                                    session=None):
+    all_keys = metadata.keys()
+    synchronize_session = "fetch"
+    if session is None:
+        session = get_session()
+        synchronize_session = False
+    with session.begin(subtransactions=True):
+        _instance_system_metadata_get_query(context, instance_uuid,
+                                            session=session).\
+            filter(models.InstanceSystemMetadata.key.in_(all_keys)).\
+            soft_delete(synchronize_session=synchronize_session)
+
+
+@require_context
 def instance_system_metadata_update(context, instance_uuid, metadata, delete,
                                     session=None):
     all_keys = metadata.keys()

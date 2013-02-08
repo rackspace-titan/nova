@@ -171,6 +171,9 @@
   <extension alias="os-simple-tenant-usage" updated="%(timestamp)s" namespace="http://docs.openstack.org/compute/ext/os-simple-tenant-usage/api/v1.1" name="SimpleTenantUsage">
     <description>%(text)s</description>
   </extension>
+  <extension alias="os-si-image-schedule" updated="%(timestamp)s" namespace="http://docs.openstack.org/servers/api/ext/scheduled_images/v1.0" name="ScheduledImages">
+    <description>%(text)s</description>
+  </extension>
   <extension alias="os-used-limits" updated="%(timestamp)s" namespace="http://docs.openstack.org/compute/ext/used_limits/api/v1.1" name="UsedLimits">
     <description>%(text)s</description>
   </extension>

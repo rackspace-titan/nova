@@ -186,6 +186,9 @@
   <extension alias="os-services" updated="2012-10-28T00:00:00-00:00" namespace="http://docs.openstack.org/compute/ext/services/api/v2" name="Services">
     <description>Services support.</description>
   </extension>
+  <extension alias="os-si-image-schedule" updated="2013-03-15T00:00:00+00:00" namespace="http://docs.openstack.org/servers/api/ext/scheduled_images/v1.0" name="ScheduledImages">
+    <description>Enables automatic daily images to be taken of a server.</description>
+  </extension>
   <extension alias="os-simple-tenant-usage" updated="2011-08-19T00:00:00+00:00" namespace="http://docs.openstack.org/compute/ext/os-simple-tenant-usage/api/v1.1" name="SimpleTenantUsage">
     <description>Simple tenant usage extension.</description>
   </extension>
