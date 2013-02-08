@@ -3803,6 +3803,19 @@ def instance_system_metadata_get(context, instance_uuid, session=None):
 
 
 @require_context
+def instance_system_metadata_get_all_by_key(context, key, session=None):
+    rows = model_query(context, models.InstanceSystemMetadata,
+                       session=session).\
+                       filter(models.Instance.deleted == 0).\
+                       filter_by(key=key).all()
+    result = {}
+    for row in rows:
+        result[row['instance_uuid']] = row['value']
+
+    return result
+
+
+@require_context
 def instance_system_metadata_update(context, instance_uuid, metadata, delete,
                                     session=None):
     all_keys = metadata.keys()
