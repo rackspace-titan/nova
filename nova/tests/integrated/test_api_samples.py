@@ -55,6 +55,7 @@ from nova.tests.api.openstack import fakes
 from nova.tests.baremetal.db import base as bm_db_base
 from nova.tests import fake_instance_actions
 from nova.tests import fake_network
+from nova.tests import fake_scheduled_images
 from nova.tests.image import fake
 from nova.tests.integrated import integrated_helpers
 from nova.tests import utils as test_utils
@@ -1181,6 +1182,75 @@ class SecurityGroupDefaultRulesSampleJsonTest(ServersSampleBase):
 
 class SecurityGroupDefaultRulesSampleXmlTest(
                                     SecurityGroupDefaultRulesSampleJsonTest):
+    ctype = 'xml'
+
+
+class ScheduledImagesFilterJsonTest(ServersSampleBase):
+    extension_name = ("nova.api.openstack.compute.contrib.scheduled_images."
+                      "Scheduled_images")
+
+    def setUp(self):
+        super(ScheduledImagesFilterJsonTest, self).setUp()
+        fake_scheduled_images.stub_out_instance_system_metadata(self.stubs)
+
+    def test_servers_detail(self):
+        uuid = self._post_server()
+        response = self._do_get('servers/detail')
+        self.assertEqual(response.status, 200)
+        subs = self._get_regexes()
+        subs['hostid'] = '[a-f0-9]+'
+        subs['id'] = uuid
+        return self._verify_response('servers-details-resp',
+                                     subs, response)
+
+    def test_servers_list(self):
+        uuid = self._post_server()
+        response = self._do_get('servers')
+        self.assertEqual(response.status, 200)
+        subs = self._get_regexes()
+        return self._verify_response('servers-list-resp',
+                                     subs, response)
+
+    def test_server_get(self):
+        uuid = self._post_server()
+        response = self._do_get('servers/%s' % uuid)
+        self.assertEqual(response.status, 200)
+        subs = self._get_regexes()
+        subs['hostid'] = '[a-f0-9]+'
+        return self._verify_response('server-get-resp', subs, response)
+
+
+class ScheduledImagesFilterXmlTest(ScheduledImagesFilterJsonTest):
+    ctype = 'xml'
+
+
+class ScheduledImagesJsonTest(ServersSampleBase):
+    extension_name = ("nova.api.openstack.compute.contrib.scheduled_images."
+                      "Scheduled_images")
+
+    def setUp(self):
+        super(ScheduledImagesJsonTest, self).setUp()
+        self.uuid = self._post_server()
+        fake_scheduled_images.stub_out_instance_system_metadata(self.stubs)
+        fake_scheduled_images.stub_out_qonos_client(self.stubs)
+
+    def test_image_schedule_post(self):
+        subs = self._get_regexes()
+        response = self._do_post('servers/%s/os-si-image-schedule' % self.uuid,
+                                 'image-schedule-post-req', subs)
+        self.assertEqual(response.status, 200)
+        return self._verify_response('image-schedule-post-resp',
+                                      subs, response)
+
+    def test_image_schedule_get(self):
+        subs = self._get_regexes()
+        response = self._do_get('servers/%s/os-si-image-schedule' % self.uuid)
+        self.assertEqual(response.status, 200)
+        return self._verify_response('image-schedule-get-resp',
+                                      subs, response)
+
+
+class ScheduledImagesXmlTest(ScheduledImagesJsonTest):
     ctype = 'xml'
 
 

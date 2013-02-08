@@ -20,6 +20,7 @@ import zlib
 
 from nova.openstack.common import log as logging
 from nova.tests import fake_network
+from nova.tests import fake_scheduled_images
 from nova.tests.integrated.api import client
 from nova.tests.integrated import integrated_helpers
 import nova.virt.fake
@@ -33,6 +34,7 @@ class ServersTest(integrated_helpers._IntegratedTestBase):
         super(ServersTest, self).setUp()
         self.conductor = self.start_service(
             'conductor', manager='nova.conductor.manager.ConductorManager')
+        fake_scheduled_images.stub_out_qonos_client(self.stubs)
 
     def _wait_for_state_change(self, server, from_status):
         for i in xrange(0, 50):
