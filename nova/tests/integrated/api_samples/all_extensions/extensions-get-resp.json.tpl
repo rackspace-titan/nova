@@ -457,6 +457,14 @@
             "updated": "%(timestamp)s"
         },
         {
+            "alias": "os-si-image-schedule",
+            "description": "%(text)s",
+            "links": [],
+            "name": "ScheduledImages",
+            "namespace": "http://docs.openstack.org/servers/api/ext/scheduled_images/v1.0",
+            "updated": "%(timestamp)s"
+        },
+        {
             "alias": "os-used-limits",
             "description": "%(text)s",
             "links": [],

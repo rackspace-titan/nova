@@ -1,0 +1,21 @@
+{
+    "servers": [
+        {
+            "OS-SI:image_schedule": {
+                "retention": 6
+            },
+            "id": "d675979b-6c9d-4b7a-8ca9-ba55121eb820",
+            "links": [
+                {
+                    "href": "http://openstack.example.com/v2/openstack/servers/d675979b-6c9d-4b7a-8ca9-ba55121eb820",
+                    "rel": "self"
+                },
+                {
+                    "href": "http://openstack.example.com/openstack/servers/d675979b-6c9d-4b7a-8ca9-ba55121eb820",
+                    "rel": "bookmark"
+                }
+            ],
+            "name": "new-server-test"
+        }
+    ]
+}
