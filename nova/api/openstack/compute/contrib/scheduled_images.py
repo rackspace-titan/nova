@@ -173,8 +173,12 @@ class ScheduledImagesController(wsgi.Controller):
 
         system_metadata = {}
         system_metadata['OS-SI:image_schedule'] = retention
-        system_metadata = db_api.instance_system_metadata_update(context,
-                           server_id, system_metadata, False)
+        try:
+            system_metadata = db_api.instance_system_metadata_update(context,
+                                      server_id, system_metadata, False)
+        except Exception:
+            raise exc.HTTPNotFound("Specified instance %s could not be found."
+                                   % server_id)
         retention = system_metadata['OS-SI:image_schedule']
         return {"image_schedule": retention}
 
