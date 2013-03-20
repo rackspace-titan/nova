@@ -227,37 +227,40 @@ class ScheduledImagesFilterController(wsgi.Controller):
         metadata = db_api.instance_system_metadata_get(context, server_id)
         return metadata
 
-    def _add_si_metadata(self, req, servers):
+    def _check_si_opt(self, req):
         search_opts = {}
         search_opts.update(req.GET)
         if 'OS-SI:image_schedule' in search_opts:
-            search_opt = search_opts['OS-SI:image_schedule']
-            if search_opt.lower() == 'true':
-                index = 0
-                while index < len(servers):
-                    server = servers[index]
-                    metadata = self._look_up_metadata(req, server['id'])
-                    if not metadata.get('OS-SI:image_schedule'):
-                        del servers[index]
-                    else:
-                        si_meta_str = metadata['OS-SI:image_schedule']
-                        si_meta = jsonutils.loads(si_meta_str)
-                        server['OS-SI:image_schedule'] = si_meta
-                        index += 1
-            elif search_opt.lower() == 'false':
-                index = 0
-                while index < len(servers):
-                    server = servers[index]
-                    metadata = self._look_up_metadata(req, server['id'])
-                    if metadata.get('OS-SI:image_schedule'):
-                        del servers[index]
-                    else:
-                        index += 1
-            else:
-                msg = _('Bad value for query parameter OS-SI:image_schedule, '
-                        'use True or False')
+             search_opt = search_opts['OS-SI:image_schedule']
+             if search_opt.lower() == 'true':
+                 return True
+             elif search_opt.lower() == 'false':
+                 return False
+             else:
+                msg = ('Bad value for query parameter OS-SI:image_schedule, '
+                       'use True or False')
                 raise exc.HTTPBadRequest(explanation=msg)
         else:
+            return None
+
+    def _filter_servers_on_si(self, servers, must_have_si):
+        filtered = []
+        if must_have_si is not None:
+            for server in servers:
+                metadata = self._look_up_metadata(req, server['id'])
+                if ((must_have_si and ('OS-SI:image_schedule' in metadata)) or
+                    (not must_have_si and ('OS-SI:image_schedule' not in metadata))):
+                    filtered.append(server)
+        else:
+            filtered = servers
+
+        return filtered
+
+    def _add_si_metadata(self, req, servers):
+        must_have_si = _check_si_opt(req)
+        servers = _filter_servers_on_si(servers, must_have_si)
+        # Only add metadata to servers we know (may) have it
+        if (must_have_si is None) or must_have_si:
             for server in servers:
                 metadata = self._look_up_metadata(req, server['id'])
                 if metadata.get('OS-SI:image_schedule'):
