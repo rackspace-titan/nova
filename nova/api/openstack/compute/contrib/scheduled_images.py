@@ -139,21 +139,21 @@ class ScheduledImagesController(wsgi.Controller):
     def is_valid_body(self, body):
         "Validate the image schedule body."
         try:
-            retention = int(body['image_schedule']['retention'])
+            retention_val = int(body['image_schedule']['retention'])
         except ValueError():
             msg = ('The retention value %s is not allowed. '
-                   'It must be an integer' % retention)
+                   'It must be an integer' % retention_val)
             raise exc.HTTPBadRequest(explanation=msg)
-        if retention <= 0:
+        if retention_val <= 0:
             msg = ('The retention value %s is not allowed. '
-                   'It must be greater than 0' % retention)
+                   'It must be greater than 0' % retention_val)
             raise exc.HTTPBadRequest(explanation=msg)
-        if CONF.qonos_retention_limit_max < retention:
+        if CONF.qonos_retention_limit_max < retention_val:
             msg = ('The retention value %s is not allowed. '
                    'It cannot exceed %s' % CONF.qonos_retention_limit_max)
             raise exc.HTTPBadRequest(explanation=msg)
 
-        return retention
+        return {"retention": retention_val}
 
     @wsgi.serializers(xml=ScheduledImagesTemplate)
     def create(self, req, server_id, body):
