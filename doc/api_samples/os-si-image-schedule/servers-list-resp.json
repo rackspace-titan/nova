@@ -2,16 +2,16 @@
     "servers": [
         {
             "OS-SI:image_schedule": {
-                "retention": "6"
+                "retention": 6
             },
-            "id": "76293a68-6658-43f0-abe6-132f2dce7c59",
+            "id": "d675979b-6c9d-4b7a-8ca9-ba55121eb820",
             "links": [
                 {
-                    "href": "http://openstack.example.com/v2/openstack/servers/76293a68-6658-43f0-abe6-132f2dce7c59",
+                    "href": "http://openstack.example.com/v2/openstack/servers/d675979b-6c9d-4b7a-8ca9-ba55121eb820",
                     "rel": "self"
                 },
                 {
-                    "href": "http://openstack.example.com/openstack/servers/76293a68-6658-43f0-abe6-132f2dce7c59",
+                    "href": "http://openstack.example.com/openstack/servers/d675979b-6c9d-4b7a-8ca9-ba55121eb820",
                     "rel": "bookmark"
                 }
             ],
