@@ -152,8 +152,8 @@ class ScheduledImagesController(wsgi.Controller):
         try:
             retention_val = int(body['image_schedule']['retention'])
         except ValueError:
-            msg = (_('The retention value %s is not allowed. '
-                     'It must be an integer') % retention_val)
+            msg = (_('The retention value %s is not allowed. It must '
+                     'be an integer') % body['image_schedule']['retention'])
             raise exc.HTTPBadRequest(explanation=msg)
         if retention_val <= 0:
             msg = (_('The retention value %s is not allowed. '
