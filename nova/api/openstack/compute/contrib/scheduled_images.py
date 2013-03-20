@@ -1,6 +1,6 @@
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
-# Copyright 2013 OpenStack Foundation.
+# Copyright 2013 Rackspace Hosting
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -33,6 +33,7 @@ from qonos.qonosclient import client
 
 ALIAS = 'os-si-image-schedule'
 XMLNS_SI = 'http://docs.openstack.org/servers/api/ext/scheduled_images/v1.0'
+XML_SI_PREFIX = 'OS-SI'
 LOG = logging.getLogger(__name__)
 authorize = extensions.extension_authorizer('compute', 'scheduled_images')
 authorize_filter = extensions.soft_extension_authorizer('compute',
@@ -60,18 +61,18 @@ class ScheduledImagesTemplate(xmlutil.TemplateBuilder):
                                           selector='image_schedule',
                                           subselector='retention')
         elem.text = int
-        return xmlutil.SlaveTemplate(root, 1, nsmap={'OS-SI': XMLNS_SI})
+        return xmlutil.SlaveTemplate(root, 1, nsmap={XML_SI_PREFIX: XMLNS_SI})
 
 
 class ScheduledImagesController(wsgi.Controller):
     """Controller class for Scheduled Images."""
 
     def __init__(self):
+        super(ScheduledImagesController, self).__init__()
         endpoint = CONF.qonos_service_api_endpoint
         port = CONF.qonos_service_port
         self.client = client.Client(endpoint, port)
         self.compute_api = compute.API()
-        super(ScheduledImagesController, self).__init__()
 
     @wsgi.serializers(xml=ScheduledImagesTemplate)
     def index(self, req, server_id):
@@ -83,7 +84,7 @@ class ScheduledImagesController(wsgi.Controller):
         if metadata.get('OS-SI:image_schedule'):
             retention = metadata['OS-SI:image_schedule']
         else:
-            msg = 'Image schedule does not exist for this server'
+            msg = ('Image schedule does not exist for server %s' % server_id)
             raise exc.HTTPNotFound(explanation=msg)
 
         return {"image_schedule": retention}
@@ -94,20 +95,21 @@ class ScheduledImagesController(wsgi.Controller):
         authorize(context)
 
         try:
-            params = {'instance_id': server_id}
+            params = {'instance_id': server_id, 'action': 'snapshot'}
             schedules = self.client.list_schedules(filter_args=params)
 
             if len(schedules) == 0:
                 raise exc.HTTPNotFound()
 
             self.client.delete_schedule(schedules[0]['id'])
-            metadata = db_api.instance_system_metadata_get(context, server_id)
-            if metadata.get('OS-SI:image_schedule'):
-                del metadata['OS-SI:image_schedule']
-                metadata = db_api.instance_system_metadata_update(context,
-                                   server_id, metadata, True)
         except exception.NotFound:
             raise exc.HTTPNotFound()
+
+        metadata = db_api.instance_system_metadata_get(context, server_id)
+        if metadata.get('OS-SI:image_schedule'):
+            del metadata['OS-SI:image_schedule']
+            metadata = db_api.instance_system_metadata_update(context,
+                               server_id, metadata, True)
 
         return webob.Response(status_int=202)
 
@@ -139,14 +141,16 @@ class ScheduledImagesController(wsgi.Controller):
         try:
             retention = int(body['image_schedule']['retention'])
         except ValueError():
-            msg = 'The retention value must be an integer'
+            msg = ('The retention value %s is not allowed. '
+                   'It must be an integer' % retention)
             raise exc.HTTPBadRequest(explanation=msg)
         if retention <= 0:
-            msg = 'The retention value must be greater than 0'
+            msg = ('The retention value %s is not allowed. '
+                   'It must be greater than 0' % retention)
             raise exc.HTTPBadRequest(explanation=msg)
         if CONF.qonos_retention_limit_max < retention:
-            msg = ('The retention value cannot exceed %s' %
-                   CONF.qonos_retention_limit_max)
+            msg = ('The retention value %s is not allowed. '
+                   'It cannot exceed %s' % CONF.qonos_retention_limit_max)
             raise exc.HTTPBadRequest(explanation=msg)
 
         return retention
@@ -157,21 +161,15 @@ class ScheduledImagesController(wsgi.Controller):
         context = req.environ['nova.context']
         authorize(context)
 
-        try:
-            retention = self.is_valid_body(body)
-        except Exception as e:
-            raise exc.HTTPBadRequest(e)
+        retention = self.is_valid_body(body)
 
-        #Raise Not Found if the instance cannot be found
         try:
             instance = db_api.instance_get_by_uuid(context, server_id)
         except Exception:
-            raise exc.HTTPNotFound("Specified instance could not be found.")
+            raise exc.HTTPNotFound("Specified instance %s could not be found."
+                                   % server_id)
 
-        try:
-            self._create_image_schedule(req, server_id)
-        except Exception:
-            raise exc.HTTPInternalServerError()
+        self._create_image_schedule(req, server_id)
 
         system_metadata = {}
         system_metadata['OS-SI:image_schedule'] = retention
@@ -190,7 +188,7 @@ class ServerScheduledImagesTemplate(xmlutil.TemplateBuilder):
         retention = xmlutil.SubTemplateElement(img_sch, 'retention',
                           selector='retention')
         retention.text = int
-        return xmlutil.SlaveTemplate(root, 1, nsmap={'OS-SI': XMLNS_SI})
+        return xmlutil.SlaveTemplate(root, 1, nsmap={XML_SI_PREFIX: XMLNS_SI})
 
 
 class ServersScheduledImagesTemplate(xmlutil.TemplateBuilder):
@@ -203,15 +201,15 @@ class ServersScheduledImagesTemplate(xmlutil.TemplateBuilder):
         retention = xmlutil.SubTemplateElement(img_sch, 'retention',
                           selector='retention')
         retention.text = int
-        return xmlutil.SlaveTemplate(root, 1, nsmap={'OS-SI': XMLNS_SI})
+        return xmlutil.SlaveTemplate(root, 1, nsmap={XML_SI_PREFIX: XMLNS_SI})
 
 
 class ScheduledImagesFilterController(wsgi.Controller):
     def __init__(self, *args, **kwargs):
+        super(ScheduledImagesFilterController, self).__init__(*args, **kwargs)
         endpoint = CONF.qonos_service_api_endpoint
         port = CONF.qonos_service_port
         self.client = client.Client(endpoint, port)
-        super(ScheduledImagesFilterController, self).__init__(*args, **kwargs)
         self.compute_api = compute.API()
 
     def _look_up_metadata(self, req, server_id):
@@ -258,12 +256,10 @@ class ScheduledImagesFilterController(wsgi.Controller):
     @wsgi.extends
     def index(self, req, resp_obj):
         context = req.environ['nova.context']
-        if 'servers' in resp_obj.obj and authorize_filter(context):
+        if authorize_filter(context):
             resp_obj.attach(xml=ServersScheduledImagesTemplate())
             servers = resp_obj.obj['servers']
             self._add_si_metadata(req, servers)
-        else:
-            LOG.info("Failed authorization for index in scheduled images")
 
     @wsgi.extends
     def show(self, req, resp_obj, id):
@@ -272,18 +268,14 @@ class ScheduledImagesFilterController(wsgi.Controller):
             resp_obj.attach(xml=ServerScheduledImagesTemplate())
             servers = [resp_obj.obj['server']]
             self._add_si_metadata(req, servers)
-        else:
-            LOG.info("Failed authorization for show in scheduled images")
 
     @wsgi.extends
     def detail(self, req, resp_obj):
         context = req.environ['nova.context']
-        if 'servers' in resp_obj.obj and authorize_filter(context):
+        if authorize_filter(context):
             resp_obj.attach(xml=ServersScheduledImagesTemplate())
             servers = resp_obj.obj['servers']
             self._add_si_metadata(req, servers)
-        else:
-            LOG.info("Failed authorization for detail in scheduled images")
 
     @wsgi.extends
     def delete(self, req, resp_obj, id):
@@ -300,10 +292,8 @@ class ScheduledImagesFilterController(wsgi.Controller):
                 for schedule in schedules:
                     self.client.delete_schedule(schedule['id'])
             except Exception:
-                LOG.warn("QonoS API is not reachable, delete on server did not
-                          delete QonoS schedules")
-        else:
-            LOG.info("Failed authorization for delete in scheduled images")
+                LOG.warn("QonoS API is not reachable, delete on server did not"
+                          "delete QonoS schedules")
 
 
 class Scheduled_images(extensions.ExtensionDescriptor):
