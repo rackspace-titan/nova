@@ -99,13 +99,20 @@ class ScheduledImagesController(wsgi.Controller):
         try:
             params = {'instance_id': server_id, 'action': 'snapshot'}
             schedules = self.client.list_schedules(filter_args=params)
+        except Exception:
+            LOG.warn('QonoS API unreachable while trying to list schedules')
 
-            if len(schedules) == 0:
-                raise exc.HTTPNotFound()
+        if len(schedules) == 0:
+            msg = ('Image schedule does not exist for server %s' %
+                   server_id)
+            raise exc.HTTPNotFound(explanation=msg)
 
+        try:
             self.client.delete_schedule(schedules[0]['id'])
         except exception.NotFound:
-            raise exc.HTTPNotFound()
+            msg = ('Image schedule does not exist for server %s' %
+                   server_id)
+            raise exc.HTTPNotFound(explanation=msg)
 
         metadata = db_api.instance_system_metadata_get(context, server_id)
         if metadata.get('OS-SI:image_schedule'):
