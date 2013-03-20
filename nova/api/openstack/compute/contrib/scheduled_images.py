@@ -108,7 +108,8 @@ class ScheduledImagesController(wsgi.Controller):
             raise exc.HTTPNotFound(explanation=msg)
 
         try:
-            self.client.delete_schedule(schedules[0]['id'])
+            for schedule in schedules:
+                self.client.delete_schedule(schedule['id'])
         except exception.NotFound:
             msg = ('Image schedule does not exist for server %s' %
                    server_id)
