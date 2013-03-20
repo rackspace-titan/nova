@@ -25,6 +25,7 @@ from nova.api.openstack import wsgi
 from nova.api.openstack import xmlutil
 from nova import compute
 from nova import db as db_api
+from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from oslo.config import cfg
 from qonos.common import exception
@@ -82,7 +83,8 @@ class ScheduledImagesController(wsgi.Controller):
 
         metadata = db_api.instance_system_metadata_get(context, server_id)
         if metadata.get('OS-SI:image_schedule'):
-            retention = metadata['OS-SI:image_schedule']
+            retention_str = metadata['OS-SI:image_schedule']
+            retention = jsonutils.loads(retention_str)
         else:
             msg = ('Image schedule does not exist for server %s' % server_id)
             raise exc.HTTPNotFound(explanation=msg)
@@ -172,14 +174,16 @@ class ScheduledImagesController(wsgi.Controller):
         self._create_image_schedule(req, server_id)
 
         system_metadata = {}
-        system_metadata['OS-SI:image_schedule'] = retention
+        retention_str = jsonutils.dumps(retention)
+        system_metadata['OS-SI:image_schedule'] = retention_str
         try:
             system_metadata = db_api.instance_system_metadata_update(context,
                                       server_id, system_metadata, False)
         except Exception:
             raise exc.HTTPNotFound("Specified instance %s could not be found."
                                    % server_id)
-        retention = system_metadata['OS-SI:image_schedule']
+        retention_str = system_metadata['OS-SI:image_schedule']
+        retention = jsonutils.loads(retention_str)
         return {"image_schedule": retention}
 
 
@@ -234,7 +238,8 @@ class ScheduledImagesFilterController(wsgi.Controller):
                     if not metadata.get('OS-SI:image_schedule'):
                         del servers[index]
                     else:
-                        si_meta = metadata['OS-SI:image_schedule']
+                        si_meta_str = metadata['OS-SI:image_schedule']
+                        si_meta = jsonutils.loads(si_meta_str)
                         server['OS-SI:image_schedule'] = si_meta
                         index += 1
             elif search_opt.lower() == 'false':
@@ -247,14 +252,15 @@ class ScheduledImagesFilterController(wsgi.Controller):
                     else:
                         index += 1
             else:
-                msg = ('Bad value for query parameter OS-SI:image_schedule ,'
+                msg = ('Bad value for query parameter OS-SI:image_schedule, '
                        'use True or False')
                 raise exc.HTTPBadRequest(explanation=msg)
         else:
             for server in servers:
                 metadata = self._look_up_metadata(req, server['id'])
                 if metadata.get('OS-SI:image_schedule'):
-                    si_meta = metadata['OS-SI:image_schedule']
+                    si_meta_str = metadata['OS-SI:image_schedule']
+                    si_meta = jsonutils.loads(si_meta_str)
                     server['OS-SI:image_schedule'] = si_meta
 
     @wsgi.extends
@@ -296,7 +302,7 @@ class ScheduledImagesFilterController(wsgi.Controller):
                 for schedule in schedules:
                     self.client.delete_schedule(schedule['id'])
             except Exception:
-                LOG.warn("QonoS API is not reachable, delete on server did not"
+                LOG.warn("QonoS API is not reachable, delete on server did not "
                           "delete QonoS schedules")
 
 
