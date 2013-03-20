@@ -295,9 +295,13 @@ class ScheduledImagesFilterController(wsgi.Controller):
                 metadata = db_api.instance_system_metadata_update(context,
                         id, metadata, True)
             params = {'action': 'snapshot', 'instance_id': id}
-            schedules = self.client.list_schedules(filter_args=params)
-            for schedule in schedules:
-                self.client.delete_schedule(schedule['id'])
+            try:
+                schedules = self.client.list_schedules(filter_args=params)
+                for schedule in schedules:
+                    self.client.delete_schedule(schedule['id'])
+            except Exception:
+                LOG.warn("QonoS API is not reachable, delete on server did not
+                          delete QonoS schedules")
         else:
             LOG.info("Failed authorization for delete in scheduled images")
 
