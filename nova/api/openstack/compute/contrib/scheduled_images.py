@@ -257,8 +257,8 @@ class ScheduledImagesFilterController(wsgi.Controller):
         return filtered
 
     def _add_si_metadata(self, req, servers):
-        must_have_si = _check_si_opt(req)
-        servers = _filter_servers_on_si(servers, must_have_si)
+        must_have_si = self._check_si_opt(req)
+        servers = self._filter_servers_on_si(servers, must_have_si)
         # Only add metadata to servers we know (may) have it
         if (must_have_si is None) or must_have_si:
             for server in servers:

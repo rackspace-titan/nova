@@ -42,16 +42,16 @@ def stub_out_instance(stubs, uuids):
 
 def stub_out_instance_system_metadata(stubs):
     def fake_instance_system_metadata_get(context, instance_id):
-        return {'OS-SI:image_schedule': {"retention": '6'}}
+        return {'OS-SI:image_schedule': '{"retention": "6"}'}
 
     stubs.Set(db, 'instance_system_metadata_get',
             fake_instance_system_metadata_get)
 
-    meta = {"OS-SI:image_schedule": {"retention": '7'}}
+    meta = {"OS-SI:image_schedule": '{"retention": "7"}'}
 
     def fake_instance_system_metadata_update(context, instance_id, meta,
                                              delete):
-        return {'OS-SI:image_schedule': {"retention": '7'}}
+        return {'OS-SI:image_schedule': '{"retention": "7"}'}
 
     stubs.Set(db, 'instance_system_metadata_update',
             fake_instance_system_metadata_update)
