@@ -86,7 +86,7 @@ class ScheduledImagesController(wsgi.Controller):
             retention_str = metadata['OS-SI:image_schedule']
             retention = jsonutils.loads(retention_str)
         else:
-            msg = ('Image schedule does not exist for server %s' % server_id)
+            msg = _('Image schedule does not exist for server %s') % server_id
             raise exc.HTTPNotFound(explanation=msg)
 
         return {"image_schedule": retention}
@@ -139,20 +139,22 @@ class ScheduledImagesController(wsgi.Controller):
             raise exc.HTTPInternalServerError()
 
     def is_valid_body(self, body):
-        "Validate the image schedule body."
+        """Validate the image schedule body."""
         try:
             retention_val = int(body['image_schedule']['retention'])
         except ValueError():
-            msg = ('The retention value %s is not allowed. '
-                   'It must be an integer' % retention_val)
+            msg = (_('The retention value %s is not allowed. '
+                     'It must be an integer') % retention_val)
             raise exc.HTTPBadRequest(explanation=msg)
         if retention_val <= 0:
-            msg = ('The retention value %s is not allowed. '
-                   'It must be greater than 0' % retention_val)
+            msg = (_('The retention value %s is not allowed. '
+                     'It must be greater than 0') % retention_val)
             raise exc.HTTPBadRequest(explanation=msg)
         if CONF.qonos_retention_limit_max < retention_val:
-            msg = ('The retention value %s is not allowed. '
-                   'It cannot exceed %s' % CONF.qonos_retention_limit_max)
+            msg = (_('The retention value %(val)s is not allowed. '
+                     'It cannot exceed %(max)s')
+                    % {"val": retention_val,
+                       "max": CONF.qonos_retention_limit_max})
             raise exc.HTTPBadRequest(explanation=msg)
 
         return {"retention": retention_val}
@@ -168,8 +170,8 @@ class ScheduledImagesController(wsgi.Controller):
         try:
             instance = db_api.instance_get_by_uuid(context, server_id)
         except Exception:
-            raise exc.HTTPNotFound("Specified instance %s could not be found."
-                                   % server_id)
+            msg = _("Specified instance %s could not be found.")
+            raise exc.HTTPNotFound(msg % server_id)
 
         self._create_image_schedule(req, server_id)
 
@@ -180,8 +182,8 @@ class ScheduledImagesController(wsgi.Controller):
             system_metadata = db_api.instance_system_metadata_update(context,
                                       server_id, system_metadata, False)
         except Exception:
-            raise exc.HTTPNotFound("Specified instance %s could not be found."
-                                   % server_id)
+            msg = _("Specified instance %s could not be found.")
+            raise exc.HTTPNotFound(msg % server_id)
         retention_str = system_metadata['OS-SI:image_schedule']
         retention = jsonutils.loads(retention_str)
         return {"image_schedule": retention}
@@ -252,8 +254,8 @@ class ScheduledImagesFilterController(wsgi.Controller):
                     else:
                         index += 1
             else:
-                msg = ('Bad value for query parameter OS-SI:image_schedule, '
-                       'use True or False')
+                msg = _('Bad value for query parameter OS-SI:image_schedule, '
+                        'use True or False')
                 raise exc.HTTPBadRequest(explanation=msg)
         else:
             for server in servers:
@@ -302,8 +304,9 @@ class ScheduledImagesFilterController(wsgi.Controller):
                 for schedule in schedules:
                     self.client.delete_schedule(schedule['id'])
             except Exception:
-                LOG.warn("QonoS API is not reachable, delete on server did not "
-                          "delete QonoS schedules")
+                msg = _("QonoS API is not reachable, delete on server did not "
+                        "delete QonoS schedules")
+                LOG.warn(msg)
 
 
 class Scheduled_images(extensions.ExtensionDescriptor):
