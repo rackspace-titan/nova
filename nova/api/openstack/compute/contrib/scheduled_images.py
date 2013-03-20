@@ -29,7 +29,7 @@ from nova import exception
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from oslo.config import cfg
-from qonos.qonosclient import qonos_exc
+from qonos.qonosclient import exception as qonos_exc
 from qonos.qonosclient import client
 
 
@@ -101,19 +101,19 @@ class ScheduledImagesController(wsgi.Controller):
             params = {'instance_id': server_id, 'action': 'snapshot'}
             schedules = self.client.list_schedules(filter_args=params)
         except qonos_exc.ConnRefused:
-            LOG.warn('QonoS API unreachable while trying to list schedules')
+            LOG.warn(_('QonoS API unreachable while trying to list schedules'))
 
         if len(schedules) == 0:
-            msg = ('Image schedule does not exist for server %s' %
-                   server_id)
+            msg = (_('Image schedule does not exist for server %s')
+                   % server_id)
             raise exc.HTTPNotFound(explanation=msg)
 
         try:
             for schedule in schedules:
                 self.client.delete_schedule(schedule['id'])
-        except exception.NotFound:
-            msg = ('Image schedule does not exist for server %s' %
-                   server_id)
+        except qonos_exc.NotFound:
+            msg = (_('Image schedule does not exist for server %s')
+                   % server_id)
             raise exc.HTTPNotFound(explanation=msg)
 
         metadata = db_api.instance_system_metadata_get(context, server_id)
@@ -179,7 +179,7 @@ class ScheduledImagesController(wsgi.Controller):
         try:
             instance = db_api.instance_get_by_uuid(context, server_id)
         except exception.InstanceNotFound:
-            msg = _("Specified instance %s could not be found.")
+            msg = _('Specified instance %s could not be found.')
             raise exc.HTTPNotFound(msg % server_id)
 
         self._create_image_schedule(req, server_id)
@@ -191,7 +191,7 @@ class ScheduledImagesController(wsgi.Controller):
             system_metadata = db_api.instance_system_metadata_update(context,
                                       server_id, system_metadata, False)
         except exception.InstanceNotFound:
-            msg = _("Specified instance %s could not be found.")
+            msg = _('Specified instance %s could not be found.')
             raise exc.HTTPNotFound(msg % server_id)
         retention_str = system_metadata['OS-SI:image_schedule']
         retention = jsonutils.loads(retention_str)
@@ -313,8 +313,8 @@ class ScheduledImagesFilterController(wsgi.Controller):
                 for schedule in schedules:
                     self.client.delete_schedule(schedule['id'])
             except qonos_exc.ConnRefused:
-                msg = _("QonoS API is not reachable, delete on server did not "
-                        "delete QonoS schedules")
+                msg = _('QonoS API is not reachable, delete on server did not "
+                        "delete QonoS schedules')
                 LOG.warn(msg)
 
 
