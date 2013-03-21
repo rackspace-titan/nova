@@ -29,8 +29,8 @@ from nova import exception
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from oslo.config import cfg
-from qonos.qonosclient import exception as qonos_exc
 from qonos.qonosclient import client
+from qonos.qonosclient import exception as qonos_exc
 
 
 ALIAS = 'os-si-image-schedule'
@@ -240,12 +240,12 @@ class ScheduledImagesFilterController(wsgi.Controller):
         search_opts = {}
         search_opts.update(req.GET)
         if 'OS-SI:image_schedule' in search_opts:
-             search_opt = search_opts['OS-SI:image_schedule']
-             if search_opt.lower() == 'true':
-                 return True
-             elif search_opt.lower() == 'false':
-                 return False
-             else:
+            search_opt = search_opts['OS-SI:image_schedule']
+            if search_opt.lower() == 'true':
+                return True
+            elif search_opt.lower() == 'false':
+                return False
+            else:
                 msg = ('Bad value for query parameter OS-SI:image_schedule, '
                        'use True or False')
                 raise exc.HTTPBadRequest(explanation=msg)
@@ -258,7 +258,8 @@ class ScheduledImagesFilterController(wsgi.Controller):
             for server in servers:
                 metadata = self._look_up_metadata(req, server['id'])
                 if ((must_have_si and ('OS-SI:image_schedule' in metadata)) or
-                    (not must_have_si and ('OS-SI:image_schedule' not in metadata))):
+                    (not must_have_si and
+                        ('OS-SI:image_schedule' not in metadata))):
                     filtered.append(server)
         else:
             filtered = servers
@@ -316,8 +317,8 @@ class ScheduledImagesFilterController(wsgi.Controller):
                 for schedule in schedules:
                     self.client.delete_schedule(schedule['id'])
             except qonos_exc.ConnRefused:
-                msg = _('QonoS API is not reachable, delete on server did not "
-                        "delete QonoS schedules')
+                msg = _('QonoS API is not reachable, delete on server did not '
+                        'delete QonoS schedules')
                 LOG.warn(msg)
 
 
