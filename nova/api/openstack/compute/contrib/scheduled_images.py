@@ -231,9 +231,10 @@ class ScheduledImagesFilterController(wsgi.Controller):
         self.client = client.Client(endpoint, port)
         self.compute_api = compute.API()
 
-    def _look_up_metadata(self, req, server_id):
+    def _look_up_metadata(self, req):
         context = req.environ['nova.context']
-        metadata = db_api.instance_system_metadata_get(context, server_id)
+        metadata = db_api.instance_system_metadata_get_all_by_key(context,
+                            'OS-SI:image_schedule')
         return metadata
 
     def _check_si_opt(self, req):
@@ -252,14 +253,14 @@ class ScheduledImagesFilterController(wsgi.Controller):
         else:
             return None
 
-    def _filter_servers_on_si(self, servers, must_have_si):
+    def _filter_servers_on_si(self, req, servers, must_have_si):
         filtered = []
         if must_have_si is not None:
+            metadata = self._look_up_metadata(req)
             for server in servers:
-                metadata = self._look_up_metadata(req, server['id'])
-                if ((must_have_si and ('OS-SI:image_schedule' in metadata)) or
+                if ((must_have_si and (server['id'] in metadata)) or
                     (not must_have_si and
-                        ('OS-SI:image_schedule' not in metadata))):
+                        (server['id'] not in metadata))):
                     filtered.append(server)
         else:
             filtered = servers
@@ -268,13 +269,13 @@ class ScheduledImagesFilterController(wsgi.Controller):
 
     def _add_si_metadata(self, req, servers):
         must_have_si = self._check_si_opt(req)
-        servers = self._filter_servers_on_si(servers, must_have_si)
+        servers = self._filter_servers_on_si(req, servers, must_have_si)
         # Only add metadata to servers we know (may) have it
         if (must_have_si is None) or must_have_si:
+            metadata = self._look_up_metadata(req)
             for server in servers:
-                metadata = self._look_up_metadata(req, server['id'])
-                if metadata.get('OS-SI:image_schedule'):
-                    si_meta_str = metadata['OS-SI:image_schedule']
+                if server['id'] in metadata:
+                    si_meta_str = metadata[server['id']]
                     si_meta = jsonutils.loads(si_meta_str)
                     server['OS-SI:image_schedule'] = si_meta
 
@@ -306,7 +307,7 @@ class ScheduledImagesFilterController(wsgi.Controller):
     def delete(self, req, resp_obj, id):
         context = req.environ['nova.context']
         if resp_obj.code == 204 and authorize_filter(context):
-            metadata = self._look_up_metadata(req, id)
+            metadata = db_api.instance_system_metadata_get(context, id)
             if metadata.get('OS-SI:image_schedule'):
                 del metadata['OS-SI:image_schedule']
                 metadata = db_api.instance_system_metadata_update(context,

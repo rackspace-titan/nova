@@ -33,7 +33,8 @@ class ScheduledImagesTest(test.TestCase):
         self.uuid_2 = '6b8b2aa4-ae7b-4cd0-a7f9-7fa6d5b0195a'
         uuids = [self.uuid_1, self.uuid_2]
         fake_scheduled_images.stub_out_instance(self.stubs, uuids)
-        fake_scheduled_images.stub_out_instance_system_metadata(self.stubs)
+        fake_scheduled_images.stub_out_instance_system_metadata(self.stubs,
+                                                                self.uuid_1)
         fake_scheduled_images.stub_out_qonos_client(self.stubs)
 
     def test_get_image_schedule(self):
@@ -65,7 +66,8 @@ class ScheduledImagesFilterTest(test.TestCase):
         self.uuid_2 = '6b8b2aa4-ae7b-4cd0-a7f9-7fa6d5b0195a'
         uuids = [self.uuid_1, self.uuid_2]
         fake_scheduled_images.stub_out_instance(self.stubs, uuids)
-        fake_scheduled_images.stub_out_instance_system_metadata(self.stubs)
+        fake_scheduled_images.stub_out_instance_system_metadata(self.stubs,
+                                                                self.uuid_1)
         fake_scheduled_images.stub_out_qonos_client(self.stubs)
         self.app = compute.APIRouter(init_only=('servers'))
 

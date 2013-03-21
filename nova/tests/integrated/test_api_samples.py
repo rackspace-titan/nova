@@ -1191,20 +1191,20 @@ class ScheduledImagesFilterJsonTest(ServersSampleBase):
 
     def setUp(self):
         super(ScheduledImagesFilterJsonTest, self).setUp()
-        fake_scheduled_images.stub_out_instance_system_metadata(self.stubs)
+        self.uuid = self._post_server()
+        fake_scheduled_images.stub_out_instance_system_metadata(self.stubs,
+                                                                self.uuid)
 
     def test_servers_detail(self):
-        uuid = self._post_server()
         response = self._do_get('servers/detail')
         self.assertEqual(response.status, 200)
         subs = self._get_regexes()
         subs['hostid'] = '[a-f0-9]+'
-        subs['id'] = uuid
+        subs['id'] = self.uuid
         return self._verify_response('servers-details-resp',
                                      subs, response)
 
     def test_servers_list(self):
-        uuid = self._post_server()
         response = self._do_get('servers')
         self.assertEqual(response.status, 200)
         subs = self._get_regexes()
@@ -1212,8 +1212,7 @@ class ScheduledImagesFilterJsonTest(ServersSampleBase):
                                      subs, response)
 
     def test_server_get(self):
-        uuid = self._post_server()
-        response = self._do_get('servers/%s' % uuid)
+        response = self._do_get('servers/%s' % self.uuid)
         self.assertEqual(response.status, 200)
         subs = self._get_regexes()
         subs['hostid'] = '[a-f0-9]+'
