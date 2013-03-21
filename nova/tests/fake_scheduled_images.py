@@ -40,7 +40,7 @@ def stub_out_instance(stubs, uuids):
                    fake_instance_get_by_uuid)
 
 
-def stub_out_instance_system_metadata(stubs):
+def stub_out_instance_system_metadata(stubs, default_id=""):
     def fake_instance_system_metadata_get(context, instance_id):
         return {'OS-SI:image_schedule': '{"retention": 6}'}
 
@@ -55,6 +55,14 @@ def stub_out_instance_system_metadata(stubs):
 
     stubs.Set(db, 'instance_system_metadata_update',
             fake_instance_system_metadata_update)
+
+    def fake_instance_system_metadata_get_all_by_key(context, key):
+        if default_id:
+            return {default_id: '{"retention": 6}'}
+        return {}
+
+    stubs.Set(db, 'instance_system_metadata_get_all_by_key',
+            fake_instance_system_metadata_get_all_by_key)
 
 
 def stub_out_qonos_client(stubs):
