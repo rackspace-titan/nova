@@ -149,24 +149,27 @@ class ScheduledImagesController(wsgi.Controller):
 
     def is_valid_body(self, body):
         """Validate the image schedule body."""
+        retention = body['image_schedule']['retention']
         try:
-            retention_val = int(body['image_schedule']['retention'])
+            retention = int(retention)
         except ValueError:
             msg = (_('The retention value %s is not allowed. It must '
-                     'be an integer') % body['image_schedule']['retention'])
+                     'be an integer') % retention)
             raise exc.HTTPBadRequest(explanation=msg)
-        if retention_val <= 0:
+
+        if retention <= 0:
             msg = (_('The retention value %s is not allowed. '
-                     'It must be greater than 0') % retention_val)
+                     'It must be greater than 0') % retention)
             raise exc.HTTPBadRequest(explanation=msg)
-        if CONF.qonos_retention_limit_max < retention_val:
+
+        if CONF.qonos_retention_limit_max < retention:
             msg = (_('The retention value %(val)s is not allowed. '
                      'It cannot exceed %(max)s')
-                    % {"val": retention_val,
+                    % {"val": retention,
                        "max": CONF.qonos_retention_limit_max})
             raise exc.HTTPBadRequest(explanation=msg)
 
-        return {"retention": retention_val}
+        return {"retention": retention}
 
     @wsgi.serializers(xml=ScheduledImagesTemplate)
     def create(self, req, server_id, body):
@@ -231,7 +234,7 @@ class ScheduledImagesFilterController(wsgi.Controller):
         self.client = client.Client(endpoint, port)
         self.compute_api = compute.API()
 
-    def _look_up_metadata(self, req):
+    def _get_all_si_system_metadata(self, req):
         context = req.environ['nova.context']
         metadata = db_api.instance_system_metadata_get_all_by_key(context,
                             'OS-SI:image_schedule')
@@ -256,23 +259,21 @@ class ScheduledImagesFilterController(wsgi.Controller):
     def _filter_servers_on_si(self, req, servers, must_have_si):
         filtered = []
         if must_have_si is not None:
-            metadata = self._look_up_metadata(req)
+            metadata = self._get_all_si_system_metadata(req)
             for server in servers:
-                if ((must_have_si and (server['id'] in metadata)) or
-                    (not must_have_si and
-                        (server['id'] not in metadata))):
+                if must_have_si == (server['id'] in metadata):
                     filtered.append(server)
-        else:
-            filtered = servers
 
-        return filtered
+            return filtered
+
+        return servers
 
     def _add_si_metadata(self, req, servers):
         must_have_si = self._check_si_opt(req)
         servers = self._filter_servers_on_si(req, servers, must_have_si)
         # Only add metadata to servers we know (may) have it
         if (must_have_si is None) or must_have_si:
-            metadata = self._look_up_metadata(req)
+            metadata = self._get_all_si_system_metadata(req)
             for server in servers:
                 if server['id'] in metadata:
                     si_meta_str = metadata[server['id']]
@@ -329,7 +330,7 @@ class Scheduled_images(extensions.ExtensionDescriptor):
     name = "ScheduledImages"
     alias = ALIAS
     namespace = XMLNS_SI
-    updated = "2013-03-19T00:00:00+00:00"
+    updated = "2013-03-20T00:00:00+00:00"
 
     def get_resources(self):
         ext = extensions.ResourceExtension('os-si-image-schedule',

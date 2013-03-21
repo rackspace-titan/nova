@@ -3806,7 +3806,7 @@ def instance_system_metadata_get(context, instance_uuid, session=None):
 def instance_system_metadata_get_all_by_key(context, key, session=None):
     rows = model_query(context, models.InstanceSystemMetadata,
                        session=session).\
-                       filter(models.Instance.deleted==0).\
+                       filter(models.Instance.deleted == 0).\
                        filter_by(key=key).all()
     result = {}
     for row in rows:
