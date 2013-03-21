@@ -246,7 +246,7 @@ class ScheduledImagesFilterController(wsgi.Controller):
             elif search_opt.lower() == 'false':
                 return False
             else:
-                msg = ('Bad value for query parameter OS-SI:image_schedule, '
+                msg = _('Bad value for query parameter OS-SI:image_schedule, '
                        'use True or False')
                 raise exc.HTTPBadRequest(explanation=msg)
         else:
