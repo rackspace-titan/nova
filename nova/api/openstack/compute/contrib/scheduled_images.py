@@ -36,6 +36,7 @@ from qonos.qonosclient import exception as qonos_exc
 ALIAS = 'os-si-image-schedule'
 XMLNS_SI = 'http://docs.openstack.org/servers/api/ext/scheduled_images/v1.0'
 XML_SI_PREFIX = 'OS-SI'
+SI_METADATA_KEY = 'OS-SI:image_schedule'
 LOG = logging.getLogger(__name__)
 authorize = extensions.extension_authorizer('compute', 'scheduled_images')
 authorize_filter = extensions.soft_extension_authorizer('compute',
@@ -83,8 +84,8 @@ class ScheduledImagesController(wsgi.Controller):
         authorize(context)
 
         metadata = db_api.instance_system_metadata_get(context, server_id)
-        if metadata.get('OS-SI:image_schedule'):
-            retention_str = metadata['OS-SI:image_schedule']
+        if metadata.get(SI_METADATA_KEY):
+            retention_str = metadata[SI_METADATA_KEY]
             retention = jsonutils.loads(retention_str)
         else:
             msg = _('Image schedule does not exist for server %s') % server_id
@@ -117,8 +118,8 @@ class ScheduledImagesController(wsgi.Controller):
             raise exc.HTTPNotFound(explanation=msg)
 
         metadata = db_api.instance_system_metadata_get(context, server_id)
-        if metadata.get('OS-SI:image_schedule'):
-            del metadata['OS-SI:image_schedule']
+        if metadata.get(SI_METADATA_KEY):
+            del metadata[SI_METADATA_KEY]
             metadata = db_api.instance_system_metadata_update(context,
                                server_id, metadata, True)
 
@@ -189,14 +190,14 @@ class ScheduledImagesController(wsgi.Controller):
 
         system_metadata = {}
         retention_str = jsonutils.dumps(retention)
-        system_metadata['OS-SI:image_schedule'] = retention_str
+        system_metadata[SI_METADATA_KEY] = retention_str
         try:
             system_metadata = db_api.instance_system_metadata_update(context,
                                       server_id, system_metadata, False)
         except exception.InstanceNotFound:
             msg = _('Specified instance %s could not be found.')
             raise exc.HTTPNotFound(msg % server_id)
-        retention_str = system_metadata['OS-SI:image_schedule']
+        retention_str = system_metadata[SI_METADATA_KEY]
         retention = jsonutils.loads(retention_str)
         return {"image_schedule": retention}
 
@@ -206,7 +207,7 @@ class ServerScheduledImagesTemplate(xmlutil.TemplateBuilder):
         root = xmlutil.TemplateElement('server')
         img_sch = xmlutil.SubTemplateElement(root,
                           '{%s}image_schedule' % XMLNS_SI,
-                          selector='OS-SI:image_schedule')
+                          selector=SI_METADATA_KEY)
         retention = xmlutil.SubTemplateElement(img_sch, 'retention',
                           selector='retention')
         retention.text = int
@@ -219,7 +220,7 @@ class ServersScheduledImagesTemplate(xmlutil.TemplateBuilder):
         elem = xmlutil.SubTemplateElement(root, 'server', selector='servers')
         img_sch = xmlutil.SubTemplateElement(elem,
                           '{%s}image_schedule' % XMLNS_SI,
-                          selector='OS-SI:image_schedule')
+                          selector=SI_METADATA_KEY)
         retention = xmlutil.SubTemplateElement(img_sch, 'retention',
                           selector='retention')
         retention.text = int
@@ -234,17 +235,18 @@ class ScheduledImagesFilterController(wsgi.Controller):
         self.client = client.Client(endpoint, port)
         self.compute_api = compute.API()
 
-    def _get_all_si_system_metadata(self, req):
+    def _get_all_retention_values(self, req):
+        """Returns a dict with instance_uuid: retention."""
         context = req.environ['nova.context']
-        metadata = db_api.instance_system_metadata_get_all_by_key(context,
-                            'OS-SI:image_schedule')
-        return metadata
+        retention_values = db_api.instance_system_metadata_get_all_by_key(
+                                        context, SI_METADATA_KEY)
+        return retention_values
 
     def _check_si_opt(self, req):
         search_opts = {}
         search_opts.update(req.GET)
-        if 'OS-SI:image_schedule' in search_opts:
-            search_opt = search_opts['OS-SI:image_schedule']
+        if SI_METADATA_KEY in search_opts:
+            search_opt = search_opts[SI_METADATA_KEY]
             if search_opt.lower() == 'true':
                 return True
             elif search_opt.lower() == 'false':
@@ -257,28 +259,28 @@ class ScheduledImagesFilterController(wsgi.Controller):
             return None
 
     def _filter_servers_on_si(self, req, servers, must_have_si):
+        if must_have_si is None:
+            return servers
+
         filtered = []
-        if must_have_si is not None:
-            metadata = self._get_all_si_system_metadata(req)
-            for server in servers:
-                if must_have_si == (server['id'] in metadata):
-                    filtered.append(server)
+        retention_values = self._get_all_retention_values(req)
+        for server in servers:
+            if must_have_si == (server['id'] in retention_values):
+                filtered.append(server)
 
-            return filtered
-
-        return servers
+        return filtered
 
     def _add_si_metadata(self, req, servers):
         must_have_si = self._check_si_opt(req)
         servers = self._filter_servers_on_si(req, servers, must_have_si)
         # Only add metadata to servers we know (may) have it
         if (must_have_si is None) or must_have_si:
-            metadata = self._get_all_si_system_metadata(req)
+            retention_values = self._get_all_retention_values(req)
             for server in servers:
-                if server['id'] in metadata:
-                    si_meta_str = metadata[server['id']]
+                if server['id'] in retention_values:
+                    si_meta_str = retention_values[server['id']]
                     si_meta = jsonutils.loads(si_meta_str)
-                    server['OS-SI:image_schedule'] = si_meta
+                    server[SI_METADATA_KEY] = si_meta
 
     @wsgi.extends
     def index(self, req, resp_obj):
@@ -309,8 +311,8 @@ class ScheduledImagesFilterController(wsgi.Controller):
         context = req.environ['nova.context']
         if resp_obj.code == 204 and authorize_filter(context):
             metadata = db_api.instance_system_metadata_get(context, id)
-            if metadata.get('OS-SI:image_schedule'):
-                del metadata['OS-SI:image_schedule']
+            if metadata.get(SI_METADATA_KEY):
+                del metadata[SI_METADATA_KEY]
                 metadata = db_api.instance_system_metadata_update(context,
                         id, metadata, True)
             params = {'action': 'snapshot', 'instance_id': id}
