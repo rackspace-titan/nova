@@ -269,19 +269,16 @@ class ScheduledImagesFilterController(wsgi.Controller):
 
     def _filter_servers_on_si(self, req, servers, must_have_si):
         if must_have_si is None:
-            return servers
+            return
 
-        filtered = []
         retention_values = self._get_all_retention_values(req)
-        for server in servers:
-            if must_have_si == (server['id'] in retention_values):
-                filtered.append(server)
-
-        return filtered
+        for server in reversed(servers):
+            if not (must_have_si == (server['id'] in retention_values)):
+                servers.remove(server)
 
     def _add_si_metadata(self, req, servers):
         must_have_si = self._check_si_opt(req)
-        servers = self._filter_servers_on_si(req, servers, must_have_si)
+        self._filter_servers_on_si(req, servers, must_have_si)
         # Only add metadata to servers we know (may) have it
         if (must_have_si is None) or must_have_si:
             retention_values = self._get_all_retention_values(req)

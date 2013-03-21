@@ -39,6 +39,20 @@ def stub_out_instance(stubs, uuids):
     stubs.Set(db, 'instance_get_by_uuid',
                    fake_instance_get_by_uuid)
 
+    def fake_instance_get_all(context, *args, **kwargs):
+        return FAKE_INSTANCES
+
+    stubs.Set(db, 'instance_get_all', fake_instance_get_all)
+    stubs.Set(db, 'instance_get_all_by_filters',
+                   fake_instance_get_all)
+
+    def fake_instance_get(context, id_):
+        for instance in FAKE_INSTANCES:
+            if id_ == instance['id']:
+                return instance
+
+    stubs.Set(db, 'instance_get', fake_instance_get)
+
 
 def stub_out_instance_system_metadata(stubs, default_id=""):
     def fake_instance_system_metadata_get(context, instance_id):

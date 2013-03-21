@@ -89,6 +89,7 @@ class ScheduledImagesFilterTest(test.TestCase):
         req = fakes.HTTPRequest.blank('/fake/servers?%s' % query)
         res = req.get_response(self.app)
         servers = jsonutils.loads(res.body)['servers']
+        self.assertEqual(len(servers), 1)
         for server in servers:
             self.assertScheduledImages(server, 6, is_present=True)
 
@@ -97,6 +98,7 @@ class ScheduledImagesFilterTest(test.TestCase):
         req = fakes.HTTPRequest.blank('/fake/servers?%s' % query)
         res = req.get_response(self.app)
         servers = jsonutils.loads(res.body)['servers']
+        self.assertEqual(len(servers), 1)
         for server in servers:
             self.assertScheduledImages(server, 6, is_present=False)
 
@@ -111,6 +113,7 @@ class ScheduledImagesFilterTest(test.TestCase):
         req = fakes.HTTPRequest.blank('/fake/servers/detail')
         res = req.get_response(self.app)
         servers = jsonutils.loads(res.body)['servers']
+        self.assertEqual(len(servers), 2)
         for server in servers:
             if server['id'] == self.uuid_1:
                 self.assertScheduledImages(server, 6, is_present=True)
@@ -122,6 +125,7 @@ class ScheduledImagesFilterTest(test.TestCase):
         req = fakes.HTTPRequest.blank('/fake/servers/detail?%s' % query)
         res = req.get_response(self.app)
         servers = jsonutils.loads(res.body)['servers']
+        self.assertEqual(len(servers), 1)
         for server in servers:
             self.assertScheduledImages(server, 6, is_present=True)
 
@@ -130,6 +134,7 @@ class ScheduledImagesFilterTest(test.TestCase):
         req = fakes.HTTPRequest.blank('/fake/servers/detail?%s' % query)
         res = req.get_response(self.app)
         servers = jsonutils.loads(res.body)['servers']
+        self.assertEqual(len(servers), 1)
         for server in servers:
             self.assertScheduledImages(server, 6, is_present=False)
 
