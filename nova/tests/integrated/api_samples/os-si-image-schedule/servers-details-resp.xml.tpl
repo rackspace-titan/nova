@@ -4,8 +4,8 @@
     <image id="%(uuid)s">
       <atom:link href="%(host)s/openstack/images/%(uuid)s" rel="bookmark"/>
     </image>
-    <flavor id="1">
-      <atom:link href="%(host)s/openstack/flavors/1" rel="bookmark"/>
+    <flavor id="%(int)s">
+      <atom:link href="%(host)s/openstack/flavors/%(int)s" rel="bookmark"/>
     </flavor>
     <metadata>
       <meta key="My Server Name">Apache1</meta>

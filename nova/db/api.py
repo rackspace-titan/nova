@@ -1365,9 +1365,9 @@ def instance_system_metadata_get(context, instance_uuid):
     return IMPL.instance_system_metadata_get(context, instance_uuid)
 
 
-def instance_system_metadata_get_all_by_key(context, key):
+def instance_system_metadata_delete(context, key, metadata):
     """Get all system metadata for an instance."""
-    return IMPL.instance_system_metadata_get_all_by_key(context, key)
+    return IMPL.instance_system_metadata_delete(context, key, metadata)
 
 
 def instance_system_metadata_update(context, instance_uuid, metadata, delete):

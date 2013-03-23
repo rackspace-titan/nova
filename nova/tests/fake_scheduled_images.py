@@ -15,9 +15,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from collections import defaultdict
+
 from nova.api.openstack.compute.contrib import scheduled_images
 from nova import db
 from nova.tests.api.openstack import fakes
+from nova import utils as nova_utils
 from qonos.qonosclient import client as qonos_client
 
 
@@ -70,13 +73,18 @@ def stub_out_instance_system_metadata(stubs, default_id=""):
     stubs.Set(db, 'instance_system_metadata_update',
             fake_instance_system_metadata_update)
 
-    def fake_instance_system_metadata_get_all_by_key(context, key):
-        if default_id:
-            return {default_id: '{"retention": 6}'}
-        return {}
+    def fake_instance_system_metadata_delete(context, instance_id, meta):
+        return
 
-    stubs.Set(db, 'instance_system_metadata_get_all_by_key',
-            fake_instance_system_metadata_get_all_by_key)
+    stubs.Set(db, 'instance_system_metadata_delete',
+            fake_instance_system_metadata_delete)
+
+    def fake_metadata_to_dict(metadata):
+        sys_meta = defaultdict(lambda : '0')
+        sys_meta.setdefault('OS-SI:image_schedule', '{"retention": 7}')
+        return sys_meta
+
+    stubs.Set(nova_utils, 'metadata_to_dict', fake_metadata_to_dict)
 
 
 def stub_out_qonos_client(stubs):
