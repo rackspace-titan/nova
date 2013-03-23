@@ -26,6 +26,7 @@ from nova.api.openstack import xmlutil
 from nova import compute
 from nova import db as db_api
 from nova import exception
+from nova import utils as nova_utils
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from oslo.config import cfg
@@ -93,6 +94,54 @@ class ScheduledImagesController(wsgi.Controller):
 
         return {"image_schedule": retention}
 
+    def _delete_schedules(self, schedules, delete_all=True):
+        not_found_any = True
+        sched_not_found = False
+        for schedule in schedules:
+            try:
+                self.client.delete_schedule(schedule['id'])
+                not_found_any = False
+            except qonos_exc.NotFound:
+                sched_not_found = True
+
+        if delete_all is False:
+            if not_found_any is True:
+                msg = (_('Found no image schedules for server %s, '
+                         'while trying to remove extra schedules.')
+                           % server_id)
+                LOG.debug(msg)
+
+            if sched_not_found is True:
+                try:
+                    params = {'instance_id': server_id, 'action': 'snapshot'}
+                    schedules = self.client.list_schedules(filter_args=params)
+                except qonos_exc.ConnRefused:
+                    LOG.warn(_('QonoS API unreachable while trying to list '
+                               'schedules'))
+                if len(schedules) != 0:
+                    msg = (_('Multiple extra image schedules could not be '
+                             'deleted for server %s, while trying to create '
+                             'a schedule for it.') % server_id)
+                    LOG.debug(msg)
+
+        if delete_all is True:
+            if not_found_any is True:
+                msg = (_('Image schedule does not exist for server %s')
+                           % server_id)
+                raise exc.HTTPNotFound(explanation=msg)
+
+            if sched_not_found is True:
+                try:
+                    params = {'instance_id': server_id, 'action': 'snapshot'}
+                    schedules = self.client.list_schedules(filter_args=params)
+                except qonos_exc.ConnRefused:
+                    LOG.warn(_('QonoS API unreachable while trying to list '
+                               'schedules'))
+                if len(schedules) != 0:
+                    msg = (_('Image schedule could not be deleted for server '
+                             '%s. Please try again.') % server_id)
+                    raise exc.HTTPInternalServerError(explanation=msg)
+
     def delete(self, req, server_id):
         """Deletes a Schedule."""
         context = req.environ['nova.context']
@@ -109,19 +158,12 @@ class ScheduledImagesController(wsgi.Controller):
                    % server_id)
             raise exc.HTTPNotFound(explanation=msg)
 
-        try:
-            for schedule in schedules:
-                self.client.delete_schedule(schedule['id'])
-        except qonos_exc.NotFound:
-            msg = (_('Image schedule does not exist for server %s')
-                   % server_id)
-            raise exc.HTTPNotFound(explanation=msg)
-
+        self._delete_schedules(schedules, delete_all=True)
         metadata = db_api.instance_system_metadata_get(context, server_id)
         if metadata.get(SI_METADATA_KEY):
-            del metadata[SI_METADATA_KEY]
-            metadata = db_api.instance_system_metadata_update(context,
-                               server_id, metadata, True)
+            to_delete_meta = {SI_METADATA_KEY: metadata[SI_METADATA_KEY]}
+            db_api.instance_system_metadata_delete(context, server_id,
+                                                   to_delete_meta)
 
         return webob.Response(status_int=202)
 
@@ -140,13 +182,13 @@ class ScheduledImagesController(wsgi.Controller):
                         }
         sch_body['schedule'] = body_schedule
         if len(schedules) == 0:
-            schedule = self.client.create_schedule(sch_body)
+            self.client.create_schedule(sch_body)
         elif len(schedules) == 1:
-            schedule = self.client.update_schedule(schedules[0]['id'],
-                                                   sch_body)
-        else:
-            #Note(nikhil): an instance can have at max one schedule
-            raise exc.HTTPInternalServerError()
+            self.client.update_schedule(schedules[0]['id'], sch_body)
+
+        #Note(nikhil): an instance can have at max one schedule, attempt
+        #to clean up the rest of the schedules
+        self._delete_schedules(schedules[1:], delete_all=False)
 
     def is_valid_body(self, body):
         """Validate the image schedule body."""
@@ -200,14 +242,8 @@ class ScheduledImagesController(wsgi.Controller):
         system_metadata = {}
         retention_str = jsonutils.dumps(retention)
         system_metadata[SI_METADATA_KEY] = retention_str
-        try:
-            system_metadata = db_api.instance_system_metadata_update(context,
-                                      server_id, system_metadata, False)
-        except exception.InstanceNotFound:
-            msg = _('Specified instance %s could not be found.')
-            raise exc.HTTPNotFound(msg % server_id)
-        retention_str = system_metadata[SI_METADATA_KEY]
-        retention = jsonutils.loads(retention_str)
+        db_api.instance_system_metadata_update(context, server_id,
+                                               system_metadata, False)
         return {"image_schedule": retention}
 
 
@@ -244,13 +280,6 @@ class ScheduledImagesFilterController(wsgi.Controller):
         self.client = client.Client(endpoint, port)
         self.compute_api = compute.API()
 
-    def _get_all_retention_values(self, req):
-        """Returns a dict with instance_uuid: retention."""
-        context = req.environ['nova.context']
-        retention_values = db_api.instance_system_metadata_get_all_by_key(
-                                        context, SI_METADATA_KEY)
-        return retention_values
-
     def _check_si_opt(self, req):
         search_opts = {}
         search_opts.update(req.GET)
@@ -264,16 +293,25 @@ class ScheduledImagesFilterController(wsgi.Controller):
                 msg = _('Bad value for query parameter OS-SI:image_schedule, '
                         'use True or False')
                 raise exc.HTTPBadRequest(explanation=msg)
-        else:
-            return None
 
     def _filter_servers_on_si(self, req, servers, must_have_si):
+        """This method is used to filter out the servers which either have
+           OS-SI:image_schedule in their system metadata or not, if filter is
+           specified in the query parameter. If filter is not specified, then
+           all the servers are returned after adding the OS-SI:image_schedule
+           system metadata on those servers for which it exists."""
         if must_have_si is None:
             return
 
-        retention_values = self._get_all_retention_values(req)
         for server in reversed(servers):
-            if not (must_have_si == (server['id'] in retention_values)):
+            #Note(nikhil): we need to remove all those servers from the servers
+            #dict for which either OS-SI:image_schedule does not exists and the
+            #query filter is set to OS-SI:image_schedule=True or
+            #OS-SI:image_schedule exists and query filter is set to
+            #OS-SI:image_schedule=False
+            instance = req.get_db_instance(server['id'])
+            si_meta_exists = (SI_METADATA_KEY in instance['system_metadata'])
+            if must_have_si != si_meta_exists:
                 servers.remove(server)
 
     def _add_si_metadata(self, req, servers):
@@ -281,10 +319,11 @@ class ScheduledImagesFilterController(wsgi.Controller):
         self._filter_servers_on_si(req, servers, must_have_si)
         # Only add metadata to servers we know (may) have it
         if (must_have_si is None) or must_have_si:
-            retention_values = self._get_all_retention_values(req)
             for server in servers:
-                if server['id'] in retention_values:
-                    si_meta_str = retention_values[server['id']]
+                instance = req.get_db_instance(server['id'])
+                meta = nova_utils.metadata_to_dict(instance['system_metadata'])
+                si_meta_str = meta.get(SI_METADATA_KEY)
+                if si_meta_str:
                     si_meta = jsonutils.loads(si_meta_str)
                     server[SI_METADATA_KEY] = si_meta
 
@@ -316,11 +355,13 @@ class ScheduledImagesFilterController(wsgi.Controller):
     def delete(self, req, resp_obj, id):
         context = req.environ['nova.context']
         if resp_obj.code == 204 and authorize_filter(context):
-            metadata = db_api.instance_system_metadata_get(context, id)
-            if metadata.get(SI_METADATA_KEY):
-                del metadata[SI_METADATA_KEY]
-                metadata = db_api.instance_system_metadata_update(context,
-                        id, metadata, True)
+            instance = req.get_db_instance(id)
+            meta = nova_utils.metadata_to_dict(instance['system_metadata'])
+            si_meta_str = meta.get(SI_METADATA_KEY)
+            if si_meta_str:
+                to_delete_meta = {SI_METADATA_KEY: si_meta_str}
+                db_api.instance_system_metadata_delete(context, server_id,
+                                                       to_delete_meta)
             params = {'action': 'snapshot', 'instance_id': id}
             try:
                 schedules = self.client.list_schedules(filter_args=params)

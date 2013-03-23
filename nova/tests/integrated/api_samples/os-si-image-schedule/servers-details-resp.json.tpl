@@ -14,10 +14,10 @@
             },
             "created": "%(timestamp)s",
             "flavor": {
-                "id": "1",
+                "id": "%(int)s",
                 "links": [
                     {
-                        "href": "%(host)s/openstack/flavors/1",
+                        "href": "%(host)s/openstack/flavors/%(int)s",
                         "rel": "bookmark"
                     }
                 ]
