@@ -94,54 +94,6 @@ class ScheduledImagesController(wsgi.Controller):
 
         return {"image_schedule": retention}
 
-    def _delete_schedules(self, schedules, delete_all=True):
-        not_found_any = True
-        sched_not_found = False
-        for schedule in schedules:
-            try:
-                self.client.delete_schedule(schedule['id'])
-                not_found_any = False
-            except qonos_exc.NotFound:
-                sched_not_found = True
-
-        if delete_all is False:
-            if not_found_any is True:
-                msg = (_('Found no image schedules for server %s, '
-                         'while trying to remove extra schedules.')
-                           % server_id)
-                LOG.debug(msg)
-
-            if sched_not_found is True:
-                try:
-                    params = {'instance_id': server_id, 'action': 'snapshot'}
-                    schedules = self.client.list_schedules(filter_args=params)
-                except qonos_exc.ConnRefused:
-                    LOG.warn(_('QonoS API unreachable while trying to list '
-                               'schedules'))
-                if len(schedules) != 0:
-                    msg = (_('Multiple extra image schedules could not be '
-                             'deleted for server %s, while trying to create '
-                             'a schedule for it.') % server_id)
-                    LOG.debug(msg)
-
-        if delete_all is True:
-            if not_found_any is True:
-                msg = (_('Image schedule does not exist for server %s')
-                           % server_id)
-                raise exc.HTTPNotFound(explanation=msg)
-
-            if sched_not_found is True:
-                try:
-                    params = {'instance_id': server_id, 'action': 'snapshot'}
-                    schedules = self.client.list_schedules(filter_args=params)
-                except qonos_exc.ConnRefused:
-                    LOG.warn(_('QonoS API unreachable while trying to list '
-                               'schedules'))
-                if len(schedules) != 0:
-                    msg = (_('Image schedule could not be deleted for server '
-                             '%s. Please try again.') % server_id)
-                    raise exc.HTTPInternalServerError(explanation=msg)
-
     def delete(self, req, server_id):
         """Deletes a Schedule."""
         context = req.environ['nova.context']
@@ -158,7 +110,14 @@ class ScheduledImagesController(wsgi.Controller):
                    % server_id)
             raise exc.HTTPNotFound(explanation=msg)
 
-        self._delete_schedules(schedules, delete_all=True)
+        try:
+            for schedule in schedules:
+                self.client.delete_schedule(schedule['id'])
+        except qonos_exc.NotFound:
+            msg = (_('Image schedule does not exist for server %s')
+                   % server_id)
+            raise exc.HTTPNotFound(explanation=msg)
+
         metadata = db_api.instance_system_metadata_get(context, server_id)
         if metadata.get(SI_METADATA_KEY):
             to_delete_meta = {SI_METADATA_KEY: metadata[SI_METADATA_KEY]}
@@ -184,11 +143,11 @@ class ScheduledImagesController(wsgi.Controller):
         if len(schedules) == 0:
             self.client.create_schedule(sch_body)
         elif len(schedules) == 1:
-            self.client.update_schedule(schedules[0]['id'], sch_body)
-
-        #Note(nikhil): an instance can have at max one schedule, attempt
-        #to clean up the rest of the schedules
-        self._delete_schedules(schedules[1:], delete_all=False)
+            schedule = self.client.update_schedule(schedules[0]['id'], 
+                                                   sch_body)
+        else:
+            #Note(nikhil): an instance can have at max one schedule
+            raise exc.HTTPInternalServerError()
 
     def is_valid_body(self, body):
         """Validate the image schedule body."""

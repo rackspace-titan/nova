@@ -80,9 +80,7 @@ def stub_out_instance_system_metadata(stubs, default_id=""):
             fake_instance_system_metadata_delete)
 
     def fake_metadata_to_dict(metadata):
-        sys_meta = defaultdict(lambda : '0')
-        sys_meta.setdefault('OS-SI:image_schedule', '{"retention": 7}')
-        return sys_meta
+        return {'OS-SI:image_schedule': '{"retention": 7}'}
 
     stubs.Set(nova_utils, 'metadata_to_dict', fake_metadata_to_dict)
 
