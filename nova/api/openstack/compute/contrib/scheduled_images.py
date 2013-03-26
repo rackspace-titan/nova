@@ -280,6 +280,12 @@ class ScheduledImagesFilterController(wsgi.Controller):
         self.client = client.Client(endpoint, port)
         self.compute_api = compute.API()
 
+    def _get_meta_from_cache(self, req, server_id):
+        instance = req.get_db_instance(server_id)
+        meta = nova_utils.metadata_to_dict(instance['system_metadata'])
+        si_meta_str = meta.get(SI_METADATA_KEY)
+        return si_meta_str
+
     def _check_si_opt(self, req):
         search_opts = {}
         search_opts.update(req.GET)
@@ -309,8 +315,8 @@ class ScheduledImagesFilterController(wsgi.Controller):
             #query filter is set to OS-SI:image_schedule=True or
             #OS-SI:image_schedule exists and query filter is set to
             #OS-SI:image_schedule=False
-            instance = req.get_db_instance(server['id'])
-            si_meta_exists = (SI_METADATA_KEY in instance['system_metadata'])
+            si_meta_str = self._get_meta_from_cache(req, server['id'])
+            si_meta_exists = (si_meta_str is not None)
             if must_have_si != si_meta_exists:
                 servers.remove(server)
 
@@ -320,9 +326,7 @@ class ScheduledImagesFilterController(wsgi.Controller):
         # Only add metadata to servers we know (may) have it
         if (must_have_si is None) or must_have_si:
             for server in servers:
-                instance = req.get_db_instance(server['id'])
-                meta = nova_utils.metadata_to_dict(instance['system_metadata'])
-                si_meta_str = meta.get(SI_METADATA_KEY)
+                si_meta_str = self._get_meta_from_cache(req, server['id'])
                 if si_meta_str:
                     si_meta = jsonutils.loads(si_meta_str)
                     server[SI_METADATA_KEY] = si_meta
@@ -355,12 +359,10 @@ class ScheduledImagesFilterController(wsgi.Controller):
     def delete(self, req, resp_obj, id):
         context = req.environ['nova.context']
         if resp_obj.code == 204 and authorize_filter(context):
-            instance = req.get_db_instance(id)
-            meta = nova_utils.metadata_to_dict(instance['system_metadata'])
-            si_meta_str = meta.get(SI_METADATA_KEY)
+            si_meta_str = self._get_meta_from_cache(req, id)
             if si_meta_str:
                 to_delete_meta = {SI_METADATA_KEY: si_meta_str}
-                db_api.instance_system_metadata_delete(context, server_id,
+                db_api.instance_system_metadata_delete(context, id,
                                                        to_delete_meta)
             params = {'action': 'snapshot', 'instance_id': id}
             try:

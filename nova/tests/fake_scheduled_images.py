@@ -79,12 +79,22 @@ def stub_out_instance_system_metadata(stubs, default_id=""):
     stubs.Set(db, 'instance_system_metadata_delete',
             fake_instance_system_metadata_delete)
 
-    def fake_metadata_to_dict(metadata):
-        sys_meta = defaultdict(lambda : '0')
-        sys_meta.setdefault('OS-SI:image_schedule', '{"retention": 7}')
-        return sys_meta
+    #def fake_metadata_to_dict(metadata):
+    #    sys_meta = defaultdict(lambda : '0')
+    #    sys_meta.setdefault('OS-SI:image_schedule', '{"retention": 7}')
+    #    return sys_meta
 
-    stubs.Set(nova_utils, 'metadata_to_dict', fake_metadata_to_dict)
+    #stubs.Set(nova_utils, 'metadata_to_dict', fake_metadata_to_dict)
+
+    def fake_scheduled_images_get_meta_from_cache(cls, req, server_id):
+        #print "REACHING NOT %s, %s \n" % (server_id, default_id)
+        if server_id==default_id:
+            #print "REACHING HERE\n"
+            return '{"retention": 7}'
+
+    cls = scheduled_images.ScheduledImagesFilterController
+    stubs.Set(cls, '_get_meta_from_cache',
+            fake_scheduled_images_get_meta_from_cache)
 
 
 def stub_out_qonos_client(stubs):
