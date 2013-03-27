@@ -110,13 +110,15 @@ class ScheduledImagesController(wsgi.Controller):
                    % server_id)
             raise exc.HTTPNotFound(explanation=msg)
 
-        try:
-            for schedule in schedules:
+        deleted_sched = False
+        for schedule in schedules:
+            try:
                 self.client.delete_schedule(schedule['id'])
-        except qonos_exc.NotFound:
-            msg = (_('Image schedule does not exist for server %s')
-                   % server_id)
-            raise exc.HTTPNotFound(explanation=msg)
+                deleted_sched = True
+            except qonos_exc.NotFound:
+                msg = (_('Image schedule %s not found when trying to delete.')
+                       % schedule['id'])
+                LOG.warn(msg)
 
         metadata = db_api.instance_system_metadata_get(context, server_id)
         if metadata.get(SI_METADATA_KEY):
@@ -147,7 +149,7 @@ class ScheduledImagesController(wsgi.Controller):
                                                    sch_body)
         else:
             #Note(nikhil): an instance can have at max one schedule
-            raise exc.HTTPInternalServerError()
+            raise exc.HTTPInternalServerError()
 
     def is_valid_body(self, body):
         """Validate the image schedule body."""
