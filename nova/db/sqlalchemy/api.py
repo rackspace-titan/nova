@@ -3813,7 +3813,7 @@ def instance_system_metadata_delete(context, instance_uuid, metadata,
     with session.begin(subtransactions=True):
         _instance_system_metadata_get_query(context, instance_uuid,
                                             session=session).\
-            filter(~models.InstanceSystemMetadata.key.in_(all_keys)).\
+            filter(models.InstanceSystemMetadata.key.in_(all_keys)).\
             soft_delete(synchronize_session=synchronize_session)
 
 
