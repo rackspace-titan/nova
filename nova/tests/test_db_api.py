@@ -355,7 +355,6 @@ class DbApiTestCase(DbTestCase):
         db.instance_system_metadata_delete(ctxt, instance['uuid'],
                                                    metadata)
         instance_meta = db.instance_system_metadata_get(ctxt, instance['uuid'])
-        print instance_meta
         self.assertEqual(len(instance_meta.keys()), 0)
         db.instance_destroy(ctxt, instance['uuid'])
 
