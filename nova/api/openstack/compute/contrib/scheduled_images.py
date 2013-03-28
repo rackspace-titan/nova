@@ -352,10 +352,6 @@ class ScheduledImagesFilterController(wsgi.Controller):
             params = {'action': 'snapshot', 'instance_id': id}
             try:
                 schedules = self.client.list_schedules(filter_args=params)
-                if not schedules:
-                    msg = (_('Image schedule does not exist for server %s')
-                              % id)
-                    raise exc.HTTPNotFound(explanation=msg)
                 for schedule in schedules:
                     try:
                         self.client.delete_schedule(schedule['id'])
