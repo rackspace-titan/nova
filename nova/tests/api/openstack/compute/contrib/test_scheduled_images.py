@@ -20,6 +20,7 @@ from nova.openstack.common import jsonutils
 from nova import test
 from nova.tests.api.openstack import fakes
 from nova.tests import fake_scheduled_images
+from qonos.qonosclient import client as qonos_client
 
 
 OS_SI = 'OS-SI:image_schedule'
@@ -139,7 +140,19 @@ class ScheduledImagesFilterTest(test.TestCase):
             self.assertScheduledImages(server, 6, is_present=False)
 
     def test_delete_server(self):
-        query = 'OS-SI:image_schedule=False'
+        req = fakes.HTTPRequest.blank('/fake/servers/%s' % self.uuid_2)
+        req.method = 'DELETE'
+        res = req.get_response(self.app)
+        self.assertEqual(res.status_int, 204)
+
+    def test_delete_server_no_schedule(self):
+
+        def fake_qonos_client_list_schedules(*args, **kwargs):
+            return []
+
+        self.stubs.Set(qonos_client.Client, 'list_schedules',
+                       fake_qonos_client_list_schedules)
+
         req = fakes.HTTPRequest.blank('/fake/servers/%s' % self.uuid_2)
         req.method = 'DELETE'
         res = req.get_response(self.app)
