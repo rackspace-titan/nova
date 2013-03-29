@@ -85,7 +85,7 @@ class ScheduledImagesController(wsgi.Controller):
     def index(self, req, server_id):
         """Returns the retention value for the schedule."""
         context = req.environ['nova.context']
-        authorize(context)
+        authorize(context, action='index')
 
         metadata = db_api.instance_system_metadata_get(context, server_id)
         if metadata.get(SI_METADATA_KEY):
@@ -115,7 +115,7 @@ class ScheduledImagesController(wsgi.Controller):
     def delete(self, req, server_id):
         """Deletes a Image Schedule."""
         context = req.environ['nova.context']
-        authorize(context)
+        authorize(context, action='delete')
 
         try:
             params = {'instance_id': server_id, 'action': 'snapshot'}
@@ -202,7 +202,7 @@ class ScheduledImagesController(wsgi.Controller):
     def create(self, req, server_id, body):
         """Creates a new Image Schedule."""
         context = req.environ['nova.context']
-        authorize(context)
+        authorize(context, action='create')
 
         retention = self.is_valid_body(body)
 
