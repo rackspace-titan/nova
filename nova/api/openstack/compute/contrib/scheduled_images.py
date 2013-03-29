@@ -143,7 +143,7 @@ class ScheduledImagesController(wsgi.Controller):
            a noop for update on the Image Schedule.
         """
         context = req.environ['nova.context']
-        tenant = context.project_id 
+        tenant = context.project_id
         params = {'action': 'snapshot', 'instance_id': server_id}
         try:
             schedules = self.client.list_schedules(filter_args=params)
