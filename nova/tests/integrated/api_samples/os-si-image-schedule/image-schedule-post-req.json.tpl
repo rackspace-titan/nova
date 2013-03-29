@@ -1,5 +1,5 @@
 {
     "image_schedule": {
-        "retention": 6
+        "retention": 7
     }
 }
