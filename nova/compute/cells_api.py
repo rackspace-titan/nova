@@ -562,6 +562,29 @@ class ComputeCellsAPI(compute_api.API):
             pass
         return rv
 
+    @validate_cell
+    def delete_instance_system_metadata(self, context, instance, meta):
+        """Delete the given system metadata item from db."""
+        super(ComputeCellsAPI, self).delete_instance_system_metadata(context,
+                instance, meta)
+        self._cast_to_cells(context, instance,
+                            'delete_instance_system_metadata', meta)
+
+    @validate_cell
+    def update_instance_system_metadata(self, context, instance,
+                                        metadata, delete=False):
+        """Updates or creates instance system metadata.
+
+        If delete is True, metadata items that are not specified in the
+        `metadata` argument will be deleted.
+
+        """
+        super(ComputeCellsAPI, self).update_instance_system_metadata(context,
+                instance, metadata, delete=delete)
+        self._cast_to_cells(context, instance,
+                            'update_instance_system_metadata',
+                            metadata, delete=delete)
+
 
 class HostAPI(compute_api.HostAPI):
     """HostAPI() class for cells.

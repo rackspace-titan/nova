@@ -2406,6 +2406,27 @@ class API(base.Base):
                                                      diff=diff)
         return _metadata
 
+    def get_instance_system_metadata(self, context, instance):
+        """Get all system metadata associated with an instance."""
+        rv = self.db.instance_system_metadata_get(context, instance['uuid'])
+        return dict(rv.iteritems())
+
+    def delete_instance_system_metadata(self, context, instance, meta):
+        """Delete the given system metadata item from db."""
+        self.db.instance_system_metadata_delete(context, instance['uuid'],
+                                                meta)
+
+    def update_instance_system_metadata(self, context, instance,
+                                        metadata, delete=False):
+        """Updates or creates instance system metadata.
+
+        If delete is True, metadata items that are not specified in the
+        `metadata` argument will be deleted.
+
+        """
+        self.db.instance_system_metadata_update(context, instance['uuid'],
+                                                metadata, delete=delete)
+
     def get_instance_faults(self, context, instances):
         """Get all faults for a list of instance uuids."""
 
