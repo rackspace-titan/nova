@@ -127,12 +127,17 @@ class ScheduledImagesController(wsgi.Controller):
             LOG.warn(_('QonoS API unreachable.'))
             raise exc.HTTPInternalServerError()
 
-        server = {'uuid': server_id}
+        try:
+            instance = db_api.instance_get_by_uuid(context, server_id)
+        except exception.InstanceNotFound:
+            msg = _('Specified instance %s could not be found.')
+            raise exc.HTTPNotFound(msg % server_id)
+
         metadata = self.compute_api.get_instance_system_metadata(context,
-                                                                 server)
+                                                                 instance)
         if metadata.get(SI_METADATA_KEY):
             to_delete_meta = {SI_METADATA_KEY: metadata[SI_METADATA_KEY]}
-            self.compute_api.delete_instance_system_metadata(context, server,
+            self.compute_api.delete_instance_system_metadata(context, instance,
                                                              to_delete_meta)
 
         return webob.Response(status_int=202)
@@ -352,9 +357,9 @@ class ScheduledImagesFilterController(wsgi.Controller):
             si_meta_str = self._get_meta_from_cache(req, id)
             if si_meta_str:
                 to_delete_meta = {SI_METADATA_KEY: si_meta_str}
-                server = {'uuid': id}
+                instance = req.get_db_instance(id)
                 self.compute_api.delete_instance_system_metadata(context,
-                        server, to_delete_meta)
+                        instance, to_delete_meta)
             params = {'action': 'snapshot', 'instance_id': id}
             try:
                 schedules = self.client.list_schedules(filter_args=params)
