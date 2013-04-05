@@ -87,7 +87,9 @@ class ScheduledImagesController(wsgi.Controller):
         context = req.environ['nova.context']
         authorize(context, action='index')
 
-        metadata = db_api.instance_system_metadata_get(context, server_id)
+        server = {'uuid': server_id}
+        metadata = self.compute_api.get_instance_system_metadata(context,
+                                                                 server)
         if metadata.get(SI_METADATA_KEY):
             retention_str = metadata[SI_METADATA_KEY]
             retention = jsonutils.loads(retention_str)
@@ -125,11 +127,13 @@ class ScheduledImagesController(wsgi.Controller):
             LOG.warn(_('QonoS API unreachable.'))
             raise exc.HTTPInternalServerError()
 
-        metadata = db_api.instance_system_metadata_get(context, server_id)
+        server = {'uuid': server_id}
+        metadata = self.compute_api.get_instance_system_metadata(context,
+                                                                 server)
         if metadata.get(SI_METADATA_KEY):
             to_delete_meta = {SI_METADATA_KEY: metadata[SI_METADATA_KEY]}
-            db_api.instance_system_metadata_delete(context, server_id,
-                                                   to_delete_meta)
+            self.compute_api.delete_instance_system_metadata(context, server,
+                                                             to_delete_meta)
 
         return webob.Response(status_int=202)
 
@@ -217,8 +221,8 @@ class ScheduledImagesController(wsgi.Controller):
         system_metadata = {}
         retention_str = jsonutils.dumps(retention)
         system_metadata[SI_METADATA_KEY] = retention_str
-        db_api.instance_system_metadata_update(context, server_id,
-                                               system_metadata, False)
+        self.compute_api.update_instance_system_metadata(context, instance,
+                system_metadata, delete=False)
         return {"image_schedule": retention}
 
 
@@ -348,8 +352,9 @@ class ScheduledImagesFilterController(wsgi.Controller):
             si_meta_str = self._get_meta_from_cache(req, id)
             if si_meta_str:
                 to_delete_meta = {SI_METADATA_KEY: si_meta_str}
-                db_api.instance_system_metadata_delete(context, id,
-                                                       to_delete_meta)
+                server = {'uuid': id}
+                self.compute_api.delete_instance_system_metadata(context,
+                        server, to_delete_meta)
             params = {'action': 'snapshot', 'instance_id': id}
             try:
                 schedules = self.client.list_schedules(filter_args=params)
