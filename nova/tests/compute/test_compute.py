@@ -5943,6 +5943,35 @@ class ComputeAPITestCase(BaseTestCase):
 
         db.instance_destroy(_context, instance['uuid'])
 
+    def test_instance_system_metadata(self):
+
+        _context = context.get_admin_context()
+        instance = self._create_fake_instance({})
+        instance = dict(instance.iteritems())
+
+        self.compute_api.update_instance_system_metadata(_context, instance,
+                                                  {'key2': 'value2'})
+        metadata = self.compute_api.get_instance_system_metadata(_context,
+                                                                 instance)
+        self.assertEqual(metadata.get('key2'), 'value2')
+
+        new_metadata = {'key2': 'bah', 'key3': 'value3'}
+        self.compute_api.update_instance_system_metadata(_context, instance,
+                                                  new_metadata, delete=False)
+        metadata = self.compute_api.get_instance_system_metadata(_context,
+                                                                 instance)
+        self.assertEqual(metadata.get('key2'), 'bah')
+        self.assertEqual(metadata.get('key3'), 'value3')
+
+        to_delete = {'key2': 'bah'}
+        self.compute_api.delete_instance_system_metadata(_context, instance,
+        to_delete)
+        metadata = self.compute_api.get_instance_system_metadata(_context,
+                                                                 instance)
+        self.assertEqual(metadata.get('key3'), 'value3')
+
+        db.instance_destroy(_context, instance['uuid'])
+
     def test_disallow_metadata_changes_during_building(self):
         def fake_change_instance_metadata(inst, ctxt, diff, instance=None,
                                           instance_uuid=None):
